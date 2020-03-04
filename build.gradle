@@ -1,0 +1,44 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.8'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+repositories {
+    // Use jcenter for resolving dependencies.
+    // You can declare any Maven/Ivy/file repository here.
+    jcenter()
+}
+
+dependencies {
+    // This dependency is used by the application.
+    implementation 'com.google.guava:guava:28.0-jre'
+
+    // Use JUnit Jupiter API for testing.
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.5.1'
+
+    // Use JUnit Jupiter Engine for testing.
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.5.1'
+}
+
+application {
+    // Define the main class for the application.
+    mainClassName = 'suzukon.tetrisgame.Main'
+    applicationDefaultJvmArgs = [ '-Dswing.handleTopLevelPaint=false' ]
+}
+
+test {
+    // Use junit platform for unit tests
+    useJUnitPlatform()
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class' : 'suzukon.tetrisgame.Main'
+    }
+}
