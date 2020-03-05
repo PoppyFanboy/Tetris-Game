@@ -6,8 +6,12 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.NavigableMap;
 import java.util.Random;
+import java.util.SortedMap;
+import java.util.SortedSet;
 import java.util.TreeMap;
 
+import java.util.TreeSet;
+import org.checkerframework.checker.units.qual.A;
 import poppyfanboy.tetrisgame.Game;
 import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
 import poppyfanboy.tetrisgame.input.Controllable;
@@ -223,19 +227,21 @@ public class GameField extends Entity implements TileField, Controllable {
         IntVector startCoords = new IntVector(0, startY);
         IntVector endCoords = new IntVector(width - 1, endY);
         // * the iterator returns the blocks in the ascending order
-        Collection<Block> blocks
+        Collection<Block> removalCandidates
                 = fallenBlocks.subMap(startCoords, true, endCoords, true)
                 .values();
         int currentRow = startY - 1;
 
-        // all blocks that will be removed
-        ArrayList<Block> clearedLines = new ArrayList<>();
+        // line indices are sorted from the top to the bottom
+        ArrayList<Integer> clearedLinesIndices = new ArrayList<>();
+        ArrayList<Block> removedBlocks = new ArrayList<>();
         // current same-row-blocks-streak
         ArrayList<Block> currentRowBlocks = new ArrayList<>();
-        for (Block block : blocks) {
+        for (Block block : removalCandidates) {
             if (currentRow != block.getTileCoords().getY()) {
                 if (currentRowBlocks.size() == width) {
-                    clearedLines.addAll(currentRowBlocks);
+                    removedBlocks.addAll(currentRowBlocks);
+                    clearedLinesIndices.add(currentRow);
                 }
                 currentRowBlocks.clear();
                 currentRowBlocks.add(block);
@@ -246,9 +252,43 @@ public class GameField extends Entity implements TileField, Controllable {
         }
         // the last row
         if (currentRowBlocks.size() == width) {
-            clearedLines.addAll(currentRowBlocks);
+            removedBlocks.addAll(currentRowBlocks);
+            clearedLinesIndices.add(currentRow);
         }
-        blocks.removeAll(clearedLines);
+        removalCandidates.removeAll(removedBlocks);
+
+        // move down rows that were above the cleared rows
+        if (clearedLinesIndices.size() != 0) {
+            Collection<Block> blocksFallingDown = fallenBlocks.subMap(
+                    new IntVector(0, 0), true,
+                    new IntVector(width - 1, clearedLinesIndices.get(clearedLinesIndices.size() - 1)), false).values();
+            int closestRemovedRowIndex = clearedLinesIndices.size() - 1;
+
+            ArrayList<IntVector> oldKeys = new ArrayList<>();
+            // ArrayList<IntVector> newKeys = new ArrayList<>();
+            for (Block block : blocksFallingDown) {
+                while (block.getTileCoords().getY()
+                        > clearedLinesIndices.get(closestRemovedRowIndex)) {
+                    closestRemovedRowIndex--;
+                }
+                // update the coordinates in the mapping
+                IntVector oldCoords = block.getTileCoords();
+                IntVector newCoords = block.getTileCoords().add(0, closestRemovedRowIndex + 1);
+                oldKeys.add(oldCoords);
+                // newKeys.add(newCoords);
+
+                block.tileShift(new IntVector(0, closestRemovedRowIndex + 1));
+            }
+
+            // update the fallenBlocks set
+            // (make sure to update the blocks from the bottom to the top,
+            // otherwise you may override some present blocks' coordinates)
+            for (int i = oldKeys.size() - 1; i >= 0; i--) {
+                Block block = fallenBlocks.get(oldKeys.get(i));
+                fallenBlocks.remove(oldKeys.get(i));
+                fallenBlocks.put(block.getTileCoords(), block);
+            }
+        }
     }
 
     @Override

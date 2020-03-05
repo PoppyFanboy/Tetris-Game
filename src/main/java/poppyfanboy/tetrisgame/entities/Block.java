@@ -7,6 +7,8 @@ import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 
+import poppyfanboy.tetrisgame.graphics.animation.Animated;
+import poppyfanboy.tetrisgame.graphics.animation.MoveAnimation;
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.graphics.Assets;
 import poppyfanboy.tetrisgame.states.GameState;
@@ -19,7 +21,7 @@ import poppyfanboy.tetrisgame.util.Transform;
 /**
  * Represents a single solid block on the game field.
  */
-public class Block extends Entity implements TileFieldObject {
+public class Block extends Entity implements TileFieldObject, Animated {
     private GameState gameState;
 
     private IntVector tileCoords;
@@ -32,6 +34,8 @@ public class Block extends Entity implements TileFieldObject {
 
     // visual representation
     private DoubleVector refCoords;
+
+    private MoveAnimation moveAnimation;
 
     /**
      * Creates a block entity at the specified position on the game field.
@@ -59,14 +63,19 @@ public class Block extends Entity implements TileFieldObject {
         tileRotationPivot = tileRotationPivot.add(shiftDirection);
 
         tileCoords = newCoords;
+        // update the visual coords?
+        // final int blockWidth = gameState.getBlockWidth();
+        // refCoords.add(shiftDirection.times(blockWidth));
     }
 
-    @Override
-    public void tileShift(IntVector shiftDirection) {
-        tileRotationPivot = tileRotationPivot.add(shiftDirection);
-
-        tileCoords = tileCoords.add(shiftDirection);
-    }
+    /*public void dropDown(int dy) {
+        tileCoords = tileCoords.add(tileCoords.getX(), dy);
+        final int blockWidth = gameState.getBlockWidth();
+        moveAnimation = new MoveAnimation(refCoords,
+                tileCoords.times(blockWidth).toDouble(),
+                gameField.getUserControlAnimationDuration(),
+                blockWidth);
+    }*/
 
     public void rotate(Rotation rotationDirection) {
         if (rotationDirection != Rotation.RIGHT
@@ -86,6 +95,10 @@ public class Block extends Entity implements TileFieldObject {
 
     @Override
     public void tick() {
+        if (moveAnimation != null && !moveAnimation.finished()) {
+            moveAnimation.tick();
+            moveAnimation.perform(this);
+        }
     }
 
     @Override
@@ -110,13 +123,17 @@ public class Block extends Entity implements TileFieldObject {
 
     @Override
     public void render(Graphics2D g, double interpolation) {
+        if (moveAnimation != null && !moveAnimation.finished()) {
+            moveAnimation.perform(this, interpolation);
+        }
+
         // draw blocks as they are on the tile field
-        /*final int blockWidth = gameState.getBlockWidth();
+        final int blockWidth = gameState.getBlockWidth();
         g.setColor(BlockColor.BLUE.getColor());
         g.setStroke(new BasicStroke(2));
-        g.drawRect(tileCoords.getX() * blockWidth + 20,
+        g.fillRect(tileCoords.getX() * blockWidth + 20,
                 tileCoords.getY() * blockWidth + 20,
-                blockWidth, blockWidth);*/
+                blockWidth, blockWidth);
 
         double rotationAngle
                 = getGlobalTransform().getRotation().getAngle();
@@ -138,15 +155,15 @@ public class Block extends Entity implements TileFieldObject {
         double progress = (n * (Rotation.normalizeAngle(rotationAngle)
                 + Math.PI) / (2 * Math.PI)) % 1;
 
-        g.drawImage(progress < 0.5 ? left : right,
-                0, 0, null);
+        /*g.drawImage(progress < 0.5 ? left : right,
+                0, 0, null);*/
 
         float alpha = (float) (progress < 0.5 ? progress : 1 - progress);
         Composite oldComposite = g.getComposite();
         g.setComposite(AlphaComposite
                 .getInstance(AlphaComposite.SRC_OVER, alpha));
-        g.drawImage(progress < 0.5 ? right : left,
-                0, 0, null);
+        /*g.drawImage(progress < 0.5 ? right : left,
+                0, 0, null);*/
 
         g.setComposite(oldComposite);
         g.setTransform(oldTransform);
@@ -180,5 +197,25 @@ public class Block extends Entity implements TileFieldObject {
     @Override
     public String toString() {
         return tileCoords.toString();
+    }
+
+    @Override
+    public void setCoords(DoubleVector newCoords) {
+        refCoords = newCoords;
+    }
+
+    @Override
+    public DoubleVector getCoords() {
+        return refCoords;
+    }
+
+    @Override
+    public void setRotationAngle(double newRotationAngle) {
+        // do nothing
+    }
+
+    @Override
+    public int getTimeTillAnimationFinishes() {
+        return 0;
     }
 }
