@@ -1,6 +1,7 @@
 package poppyfanboy.tetrisgame;
 
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferStrategy;
 
 import poppyfanboy.tetrisgame.graphics.Assets;
@@ -86,7 +87,6 @@ public class Game implements Runnable {
         gameState = new GameState(this, blockWidth);
         menuState = new MenuState(this);
         currentState = gameState;
-        keyManager.addListener(gameState);
     }
 
     /**
@@ -137,6 +137,10 @@ public class Game implements Runnable {
         }
         // graphics
         Graphics2D g = (Graphics2D) bs.getDrawGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_RENDERING,
+                RenderingHints.VALUE_RENDER_QUALITY);
         // clear the screen
         g.clearRect(0, 0, width, height);
         if (currentState != null) {
@@ -148,6 +152,10 @@ public class Game implements Runnable {
 
     public Assets getAssets() {
         return assets;
+    }
+
+    public KeyManager getKeyManager() {
+        return keyManager;
     }
 
     public int getWidth() {

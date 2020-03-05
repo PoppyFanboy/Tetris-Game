@@ -19,9 +19,4 @@ public class MenuState extends State {
     @Override
     public void render(Graphics2D g, double leftover) {
     }
-
-    @Override
-    public void control(EnumMap<InputKey, KeyState> inputs) {
-
-    }
 }

@@ -4,9 +4,16 @@ import java.awt.Graphics2D;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.LinkedList;
 import java.util.List;
 
+import java.util.Random;
+import poppyfanboy.tetrisgame.Game;
+import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
+import poppyfanboy.tetrisgame.input.Controllable;
+import poppyfanboy.tetrisgame.input.InputKey;
+import poppyfanboy.tetrisgame.input.KeyState;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.states.GameState;
@@ -19,7 +26,7 @@ import static poppyfanboy.tetrisgame.util.IntVector.iVect;
  * A game field entity. Wraps several block entities and a single shape
  * entity that can be moved and rotated.
  */
-public class GameField extends Entity implements TileField {
+public class GameField extends Entity implements TileField, Controllable {
     public static int DEFAULT_WIDTH = 10, DEFAULT_HEIGHT = 20;
 
     // the game state to which this game field belongs
@@ -35,6 +42,19 @@ public class GameField extends Entity implements TileField {
     private int widthInBlocks, heightInBlocks;
     private Entity parentEntity;
 
+    // used to generate new falling shapes
+    private final Random random;
+
+    // stuff related to game logic
+    private int level = 1;
+    // how many ticks past since last active shape drop
+    private int lastDropCounter = 0;
+
+    private int softDropDuration = Game.TICKS_PER_SECOND / 4;
+    private int forcedDropDuration = Game.TICKS_PER_SECOND / 16;
+
+    private boolean forcedDrop = false;
+
     /**
      * Creates an empty instance of a game field.
      *
@@ -42,11 +62,13 @@ public class GameField extends Entity implements TileField {
      *          parent entity.
      */
     public GameField(GameState gameState, DoubleVector coords,
-            int widthInBlocks, int heightInBlocks, Entity parentEntity) {
+            int widthInBlocks, int heightInBlocks, Entity parentEntity,
+            Random random) {
         this.gameState = gameState;
         this.widthInBlocks = widthInBlocks;
         this.heightInBlocks = heightInBlocks;
         this.parentEntity = parentEntity;
+        this.random = random;
 
         this.coords = coords;
         this.rotationAngle = 0;
@@ -56,8 +78,40 @@ public class GameField extends Entity implements TileField {
      * Creates a game field with no parent entity.
      */
     public GameField(GameState gameState, DoubleVector coords,
-            int widthInBlocks, int heightInBlocks) {
-        this(gameState, coords, widthInBlocks, heightInBlocks, null);
+            int widthInBlocks, int heightInBlocks, Random random) {
+        this(gameState, coords, widthInBlocks, heightInBlocks, null,
+                random);
+    }
+
+    public void start() {
+        Shape activeShape = Shape.getRandomShapeEvenlyColored(random,
+                gameState, Rotation.INITIAL, new IntVector(0, 0), this,
+                TetrisShapeType.class);
+        spawnNewActiveShape(activeShape);
+    }
+
+    public void pause() {
+        // implementation
+    }
+
+    public void stop() {
+        // implementation
+    }
+
+    public int getRotateAnimationDuration() {
+        return softDropDuration / 4;
+    }
+
+    public int getForcedDropAnimationDuration() {
+        return forcedDropDuration;
+    }
+
+    public int getSoftDropAnimationDuration() {
+        return softDropDuration;
+    }
+
+    public int getUserControlAnimationDuration() {
+        return softDropDuration / 4;
     }
 
     /**
@@ -67,7 +121,7 @@ public class GameField extends Entity implements TileField {
      * This method can fail in case the inserted shape overlaps some
      * of the blocks on the field or it is out of the field bounds.
      */
-    public boolean spawnNewActiveShape(Shape newShape) {
+    private boolean spawnNewActiveShape(Shape newShape) {
         if (!tryPut(newShape, this)) {
             return false;
         }
@@ -123,7 +177,7 @@ public class GameField extends Entity implements TileField {
      * @return  {@code false} in case it fails or there is no
      *          currently active shape.
      */
-    public boolean moveActiveShape(IntVector newCoordinates) {
+    private boolean moveActiveShape(IntVector newCoordinates) {
         IntVector shiftDirection
             = newCoordinates.subtract(activeShape.getTileCoords());
         return shiftActiveShape(shiftDirection);
@@ -135,7 +189,7 @@ public class GameField extends Entity implements TileField {
      * the latter is made to handle user inputs and usually the animations
      * for those are a bit faster.
      */
-    public boolean activeShapeSoftDrop() {
+    private boolean activeShapeSoftDrop() {
         if (activeShape == null) {
             return false;
         }
@@ -146,7 +200,7 @@ public class GameField extends Entity implements TileField {
         return false;
     }
 
-    public void activeShapeSetForcedDrop(boolean option) {
+    private void activeShapeSetForcedDrop(boolean option) {
         activeShape.setForcedDrop(option);
     }
 
@@ -156,7 +210,7 @@ public class GameField extends Entity implements TileField {
      * @return  {@code false} in case it fails or there is no
      *          currently active shape.
      */
-    public boolean shiftActiveShape(IntVector shiftDirection) {
+    private boolean shiftActiveShape(IntVector shiftDirection) {
         if (activeShape == null) {
             return false;
         }
@@ -194,27 +248,6 @@ public class GameField extends Entity implements TileField {
             }
             return false;
         }
-    }
-
-    /**
-     * Tries to rotate the active shape in the clockwise direction.
-     *
-     * @return  {@code false} in case it fails or there is no
-     *          currently active shape.
-     */
-    public boolean rotateActiveShapeRight() {
-        return rotateActiveShape(Rotation.RIGHT);
-    }
-
-    /**
-     * Tries to rotated the active shape in the counter-clockwise
-     * direction.
-     *
-     * @return  {@code false} in case it fails or there is no
-     *          currently active shape.
-     */
-    public boolean rotateActiveShapeLeft() {
-        return rotateActiveShape(Rotation.LEFT);
     }
 
     @Override
@@ -295,6 +328,76 @@ public class GameField extends Entity implements TileField {
         }
         for (Block block : fallenBlocks) {
             block.tick();
+        }
+        lastDropCounter++;
+        if (lastDropCounter >= softDropDuration && !forcedDrop
+                || lastDropCounter >= forcedDropDuration && forcedDrop) {
+            if (!activeShapeSoftDrop()) {
+                Shape newActiveShape
+                        = Shape.getRandomShapeEvenlyColored(random,
+                        gameState, Rotation.INITIAL, new IntVector(0, 0),
+                        this, TetrisShapeType.class);
+                this.spawnNewActiveShape(newActiveShape);
+                newActiveShape.setForcedDrop(forcedDrop);
+            }
+            lastDropCounter = 0;
+        }
+    }
+
+    @Override
+    public void control(EnumMap<InputKey, KeyState> inputs) {
+        IntVector shift = new IntVector(0, 0);
+        Rotation rotationDirection = Rotation.INITIAL;
+
+        for (EnumMap.Entry<InputKey, KeyState> key : inputs.entrySet()) {
+            if (key.getValue() == KeyState.PRESSED) {
+                switch (key.getKey()) {
+                    case ARROW_DOWN:
+                        if (!forcedDrop) {
+                            lastDropCounter = (int) Math.round(
+                                (1.0 * lastDropCounter / softDropDuration)
+                                * forcedDropDuration);
+                        }
+                        forcedDrop = true;
+                        activeShapeSetForcedDrop(true);
+                        break;
+                    case ARROW_LEFT:
+                        shift = shift.add(-1, 0);
+                        break;
+                    case ARROW_RIGHT:
+                        shift = shift.add(1, 0);
+                        break;
+                    case W:
+                        rotationDirection
+                                = rotationDirection.add(Rotation.LEFT);
+                        break;
+                    case S:
+                        rotationDirection
+                                = rotationDirection.add(Rotation.RIGHT);
+                        break;
+                }
+            }
+            if (key.getValue() == KeyState.RELEASED) {
+                switch (key.getKey()) {
+                    case ARROW_DOWN:
+                        if (forcedDrop) {
+                            lastDropCounter = (int) Math.round(
+                                (1.0 * lastDropCounter / forcedDropDuration)
+                                * softDropDuration);
+                        }
+                        forcedDrop = false;
+                        activeShapeSetForcedDrop(false);
+                        break;
+                }
+            }
+        }
+        if (!shift.equals(new IntVector(0, 0))) {
+            shiftActiveShape(shift);
+        }
+
+        if (rotationDirection.equals(Rotation.LEFT)
+                || rotationDirection.equals(Rotation.RIGHT)) {
+            rotateActiveShape(rotationDirection);
         }
     }
 }

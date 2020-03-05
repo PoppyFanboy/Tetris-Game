@@ -14,7 +14,7 @@ import poppyfanboy.tetrisgame.input.Controllable;
  * This class also holds the current state of the game, thus acting
  * like a state manager.
  */
-public abstract class State implements Controllable {
+public abstract class State {
     private Game game;
 
     public State(Game game) {

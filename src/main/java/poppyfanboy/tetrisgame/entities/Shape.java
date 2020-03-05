@@ -158,7 +158,7 @@ public class Shape extends Entity implements TileFieldObject, Animated {
             }
         }
         rotateAnimation = new RotateAnimation(rotationAngle,
-            newRotationAngle, gameState.getRotateAnimationDuration(),
+            newRotationAngle, gameField.getRotateAnimationDuration(),
             Math.PI / 2, isClockwise);
 
         for (Block block : blocks) {
@@ -229,8 +229,8 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         }
         final int blockWidth = gameState.getBlockWidth();
         int animationDuration = isForcedToDrop
-                ? gameState.getForcedDropAnimationDuration()
-                : gameState.getSoftDropAnimationDuration();
+                ? gameField.getForcedDropAnimationDuration()
+                : gameField.getSoftDropAnimationDuration();
         softDropAnimation = HVLinearAnimation.getVerticalAnimation(
                 coords.getY(), tileCoords.getY() * blockWidth,
                 animationDuration, blockWidth);
@@ -241,10 +241,10 @@ public class Shape extends Entity implements TileFieldObject, Animated {
             if (softDropAnimation != null) {
                 if (option) {
                     softDropAnimation.changeDuration(
-                            gameState.getForcedDropAnimationDuration());
+                            gameField.getForcedDropAnimationDuration());
                 } else {
                     softDropAnimation.changeDuration(
-                            gameState.getSoftDropAnimationDuration());
+                            gameField.getSoftDropAnimationDuration());
                 }
             }
             isForcedToDrop = option;
@@ -267,7 +267,7 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         final int blockWidth = gameState.getBlockWidth();
         moveAnimation = HVLinearAnimation.getHorizontalAnimation(
                 coords.getX(), tileCoords.getX() * blockWidth,
-                gameState.getUserControlAnimationDuration(), blockWidth);
+                gameField.getUserControlAnimationDuration(), blockWidth);
     }
 
     @Override
