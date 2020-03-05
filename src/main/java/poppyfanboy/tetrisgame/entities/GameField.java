@@ -13,6 +13,8 @@ import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.util.Rotation;
 import poppyfanboy.tetrisgame.util.Transform;
 
+import static poppyfanboy.tetrisgame.util.IntVector.iVect;
+
 /**
  * A game field entity. Wraps several block entities and a single shape
  * entity that can be moved and rotated.
@@ -125,6 +127,27 @@ public class GameField extends Entity implements TileField {
         IntVector shiftDirection
             = newCoordinates.subtract(activeShape.getTileCoords());
         return shiftActiveShape(shiftDirection);
+    }
+
+    /**
+     * Drops the active shape by one block down. The difference with the
+     * {@link GameField#shiftActiveShape(IntVector)} method is that
+     * the latter is made to handle user inputs and usually the animations
+     * for those are a bit faster.
+     */
+    public boolean activeShapeSoftDrop() {
+        if (activeShape == null) {
+            return false;
+        }
+        if (tryPut(activeShape, iVect(0, 1), this)) {
+            activeShape.softDrop();
+            return true;
+        }
+        return false;
+    }
+
+    public void activeShapeSetForcedDrop(boolean option) {
+        activeShape.setForcedDrop(option);
     }
 
     /**

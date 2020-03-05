@@ -15,7 +15,7 @@ import poppyfanboy.tetrisgame.states.State;
  */
 public class Game implements Runnable {
     // how many times per second *the game* is updated
-    private static final int TICKS_PER_SECOND = 50;
+    public static final int TICKS_PER_SECOND = 50;
     // max time for each game update
     private static final long SKIP_TICKS
         = 1_000_000_000 / TICKS_PER_SECOND;
@@ -83,7 +83,7 @@ public class Game implements Runnable {
         display = new Display(title, width, height);
         display.getFrame().addKeyListener(keyManager);
         assets = new Assets(128, 32, 8);
-        gameState = new GameState(this, blockWidth, 8);
+        gameState = new GameState(this, blockWidth);
         menuState = new MenuState(this);
         currentState = gameState;
         keyManager.addListener(gameState);

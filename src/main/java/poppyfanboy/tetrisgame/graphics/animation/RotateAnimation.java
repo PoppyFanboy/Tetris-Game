@@ -5,8 +5,8 @@ import static java.lang.Math.min;
 import static java.lang.Math.max;
 
 public class RotateAnimation implements Animation {
-    private final int duration;
     private final double startAngle, endAngle;
+    private final int duration;
     private int currentDuration;
     private boolean clockwise;
 

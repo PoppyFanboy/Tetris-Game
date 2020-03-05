@@ -13,8 +13,7 @@ import poppyfanboy.tetrisgame.util.DoubleVector;
  * object.
  */
 public interface Animated {
-    void addMoveAnimation(MoveAnimation moveAnimation);
-    void addRotateAnimation(RotateAnimation rotateAnimation);
     void setCoords(DoubleVector newCoords);
+    DoubleVector getCoords();
     void setRotationAngle(double newRotationAngle);
 }

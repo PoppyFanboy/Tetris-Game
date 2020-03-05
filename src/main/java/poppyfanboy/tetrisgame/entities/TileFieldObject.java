@@ -15,6 +15,9 @@ public interface TileFieldObject {
      */
     boolean checkCollision(IntVector collisionTile);
     void tileMove(IntVector newTileCoordinates);
-    void tileShift(IntVector shiftDirection);
+
+    default void tileShift(IntVector shiftDirection) {
+        tileMove(getTileCoords().add(shiftDirection));
+    }
     IntVector getTileCoords();
 }

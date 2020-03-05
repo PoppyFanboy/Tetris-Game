@@ -8,11 +8,12 @@ import java.util.List;
 import java.util.Random;
 
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
-import poppyfanboy.tetrisgame.graphics.animation.MoveAnimation;
+import poppyfanboy.tetrisgame.graphics.animation.HVLinearAnimation;
 import poppyfanboy.tetrisgame.graphics.animation.RotateAnimation;
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.util.DoubleVector;
+import static poppyfanboy.tetrisgame.util.IntVector.iVect;
 import poppyfanboy.tetrisgame.util.Rotation;
 import poppyfanboy.tetrisgame.util.Transform;
 import poppyfanboy.tetrisgame.util.Util;
@@ -44,8 +45,13 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     // each new animation cancels the previous one (the exception is
     // two consecutive rotation animations in the same direction),
     // thus there is no need for the list of present animations so far
-    private MoveAnimation currentMoveAnimation;
-    private RotateAnimation currentRotationAnimation;
+    private HVLinearAnimation moveAnimation;
+    private HVLinearAnimation softDropAnimation;
+    private RotateAnimation rotateAnimation;
+
+    // the shape will drop slightly faster when the player is holding
+    // the down key
+    private boolean isForcedToDrop = false;
 
     /**
      * @param   blockColors colors of the solid blocks of the shape.
@@ -129,12 +135,12 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         boolean isClockwise = rotationDirection == Rotation.RIGHT;
         double newRotationAngle;
 
-        if (currentRotationAnimation == null) {
+        if (rotateAnimation == null) {
             rotationAngle = rotation.getAngle();
             newRotationAngle = rotationAngle
                     + (isClockwise ? Math.PI / 2 : -Math.PI / 2);
         } else {
-            if (currentRotationAnimation.isClockwise() != isClockwise) {
+            if (rotateAnimation.isClockwise() != isClockwise) {
                 double angleShift = Rotation.normalizeAngle(
                         rotation.add(rotationDirection).getAngle()
                                 - rotationAngle);
@@ -147,13 +153,13 @@ public class Shape extends Entity implements TileFieldObject, Animated {
                 newRotationAngle = rotationAngle + angleShift;
             } else {
                 newRotationAngle
-                        = currentRotationAnimation.getEndAngle()
+                        = rotateAnimation.getEndAngle()
                         + (isClockwise ? Math.PI / 2 : -Math.PI / 2);
             }
         }
-        addRotateAnimation(new RotateAnimation(rotationAngle,
-            newRotationAngle, gameState.getAnimationDuration(),
-            Math.PI / 2, isClockwise));
+        rotateAnimation = new RotateAnimation(rotationAngle,
+            newRotationAngle, gameState.getRotateAnimationDuration(),
+            Math.PI / 2, isClockwise);
 
         for (Block block : blocks) {
             block.rotate(rotationDirection);
@@ -216,6 +222,35 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         return true;
     }
 
+    public void softDrop() {
+        tileCoords = tileCoords.add(0, 1);
+        for (Block block : blocks) {
+            block.tileShift(iVect(0, 1));
+        }
+        final int blockWidth = gameState.getBlockWidth();
+        int animationDuration = isForcedToDrop
+                ? gameState.getForcedDropAnimationDuration()
+                : gameState.getSoftDropAnimationDuration();
+        softDropAnimation = HVLinearAnimation.getVerticalAnimation(
+                coords.getY(), tileCoords.getY() * blockWidth,
+                animationDuration, blockWidth);
+    }
+
+    public void setForcedDrop(boolean option) {
+        if (option != isForcedToDrop) {
+            if (softDropAnimation != null) {
+                if (option) {
+                    softDropAnimation.changeDuration(
+                            gameState.getForcedDropAnimationDuration());
+                } else {
+                    softDropAnimation.changeDuration(
+                            gameState.getSoftDropAnimationDuration());
+                }
+            }
+            isForcedToDrop = option;
+        }
+    }
+
     @Override
     public IntVector getTileCoords() {
         return tileCoords;
@@ -230,22 +265,9 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         }
 
         final int blockWidth = gameState.getBlockWidth();
-        this.addMoveAnimation(new MoveAnimation(coords,
-            tileCoords.times(blockWidth).toDouble(),
-            gameState.getAnimationDuration(), blockWidth));
-    }
-
-    @Override
-    public void tileShift(IntVector shiftDirection) {
-        tileCoords = tileCoords.add(shiftDirection);
-        for (Block block : blocks) {
-            block.tileShift(shiftDirection);
-        }
-
-        final int blockWidth = gameState.getBlockWidth();
-        this.addMoveAnimation(new MoveAnimation(coords,
-            tileCoords.times(blockWidth).toDouble(),
-            gameState.getAnimationDuration(), blockWidth));
+        moveAnimation = HVLinearAnimation.getHorizontalAnimation(
+                coords.getX(), tileCoords.getX() * blockWidth,
+                gameState.getUserControlAnimationDuration(), blockWidth);
     }
 
     @Override
@@ -275,7 +297,7 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         // coordinates of the collision relatively to the tile coordinates
         // of this shape
         final IntVector relativeCollisionTile
-            = collisionTile.add(shapeShift).subtract(tileCoords);
+            = collisionTile.subtract(tileCoords.add(shapeShift));
         final int x = relativeCollisionTile.getX();
         final int y = relativeCollisionTile.getY();
 
@@ -287,21 +309,17 @@ public class Shape extends Entity implements TileFieldObject, Animated {
 
     @Override
     public void tick() {
-        if (currentRotationAnimation != null) {
-            if (currentRotationAnimation.finished()) {
-                currentRotationAnimation = null;
-            } else {
-                currentRotationAnimation.tick();
-                currentRotationAnimation.perform(this);
-            }
+        if (rotateAnimation != null && !rotateAnimation.finished()) {
+            rotateAnimation.tick();
+            rotateAnimation.perform(this);
         }
-        if (currentMoveAnimation != null) {
-            if (currentMoveAnimation.finished()) {
-                currentMoveAnimation = null;
-            } else {
-                currentMoveAnimation.tick();
-                currentMoveAnimation.perform(this);
-            }
+        if (softDropAnimation != null && !softDropAnimation.finished()) {
+            softDropAnimation.tick();
+            softDropAnimation.perform(this);
+        }
+        if (moveAnimation != null && !moveAnimation.finished()) {
+            moveAnimation.tick();
+            moveAnimation.perform(this);
         }
         for (Block block : blocks) {
             block.tick();
@@ -311,13 +329,14 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     @Override
     public void render(Graphics2D g, double interpolation) {
         // interpolate shape position between the actual game ticks
-        if (currentMoveAnimation != null
-                && !currentMoveAnimation.finished()) {
-            currentMoveAnimation.perform(this, interpolation);
+        if (rotateAnimation != null && !rotateAnimation.finished()) {
+            rotateAnimation.perform(this, interpolation);
         }
-        if (currentRotationAnimation != null
-                && !currentRotationAnimation.finished()) {
-            currentRotationAnimation.perform(this, interpolation);
+        if (softDropAnimation != null && !softDropAnimation.finished()) {
+            softDropAnimation.perform(this, interpolation);
+        }
+        if (moveAnimation != null && !moveAnimation.finished()) {
+            moveAnimation.perform(this, interpolation);
         }
 
         for (Block block : blocks) {
@@ -415,6 +434,11 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     }
 
     @Override
+    public DoubleVector getCoords() {
+        return coords;
+    }
+
+    @Override
     public void setRotationAngle(double newRotationAngle) {
         rotationAngle = newRotationAngle;
     }
@@ -430,20 +454,6 @@ public class Shape extends Entity implements TileFieldObject, Animated {
                 = globalTransform.apply(convexHull[i].times(blockWidth));
         }
         return convexHull;
-    }
-
-    @Override
-    public void addMoveAnimation(MoveAnimation moveAnimation) {
-        if (moveAnimation != null) {
-            currentMoveAnimation = moveAnimation;
-        }
-    }
-
-    @Override
-    public void addRotateAnimation(RotateAnimation rotateAnimation) {
-        if (rotateAnimation != null) {
-            currentRotationAnimation = rotateAnimation;
-        }
     }
 
     @SafeVarargs

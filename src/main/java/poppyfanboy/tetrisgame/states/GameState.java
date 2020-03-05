@@ -17,21 +17,27 @@ import poppyfanboy.tetrisgame.util.Rotation;
 
 public class GameState extends State {
     private int blockWidth;
-    private int defaultAnimationDuration;
+
+    private int level = 1;
+    // how many ticks past since last active shape drop
+    private int lastDropCounter = 0;
+    // how many ticks does a single soft drop last at the current level
+    private int softDropDuration = Game.TICKS_PER_SECOND;
+    private int forcedDropDuration = Game.TICKS_PER_SECOND / 4;
+
+    private boolean forcedDrop = false;
 
     private GameField gameField;
     private Random random = new Random();
 
-    public GameState(Game game, int blockWidth,
-                     int defaultAnimationDuration) {
+    public GameState(Game game, int blockWidth) {
         super(game);
         gameField = new GameField(this, new DoubleVector(20, 20),
                 GameField.DEFAULT_WIDTH, GameField.DEFAULT_HEIGHT);
         this.blockWidth = blockWidth;
-        this.defaultAnimationDuration = defaultAnimationDuration;
 
         // test code
-        Shape activeShape = Shape.getRandomShapeRandomlyColored(random,
+        Shape activeShape = Shape.getRandomShapeEvenlyColored(random,
                 this, Rotation.INITIAL, new IntVector(0, 0), gameField,
                 TetrisShapeType.class);
         gameField.spawnNewActiveShape(activeShape);
@@ -45,13 +51,37 @@ public class GameState extends State {
         return blockWidth;
     }
 
-    public int getAnimationDuration() {
-        return defaultAnimationDuration;
+    public int getUserControlAnimationDuration() {
+        return softDropDuration / 2;
+    }
+
+    public int getRotateAnimationDuration() {
+        return softDropDuration / 4;
+    }
+
+    public int getSoftDropAnimationDuration() {
+        return softDropDuration;
+    }
+
+    public int getForcedDropAnimationDuration() {
+        return forcedDropDuration;
     }
 
     @Override
     public void tick() {
         gameField.tick();
+        lastDropCounter++;
+        if (lastDropCounter >= softDropDuration && !forcedDrop
+                || lastDropCounter >= forcedDropDuration && forcedDrop) {
+            if (!gameField.activeShapeSoftDrop()) {
+                Shape newActiveShape
+                        = Shape.getRandomShapeEvenlyColored(random,
+                        this, Rotation.INITIAL, new IntVector(0, 0),
+                        gameField, TetrisShapeType.class);
+                gameField.spawnNewActiveShape(newActiveShape);
+            }
+            lastDropCounter = 0;
+        }
     }
 
     @Override
@@ -67,11 +97,14 @@ public class GameState extends State {
         for (EnumMap.Entry<InputKey, KeyState> key : inputs.entrySet()) {
             if (key.getValue() == KeyState.PRESSED) {
                 switch (key.getKey()) {
-                    case ARROW_UP:
-                        shift = shift.add(0, -1);
-                        break;
                     case ARROW_DOWN:
-                        shift = shift.add(0, 1);
+                        if (!forcedDrop) {
+                            lastDropCounter = (int) Math.round(
+                                (1.0 * lastDropCounter / softDropDuration)
+                                * forcedDropDuration);
+                        }
+                        forcedDrop = true;
+                        gameField.activeShapeSetForcedDrop(true);
                         break;
                     case ARROW_LEFT:
                         shift = shift.add(-1, 0);
@@ -86,6 +119,19 @@ public class GameState extends State {
                     case S:
                         rotationDirection
                             = rotationDirection.add(Rotation.RIGHT);
+                        break;
+                }
+            }
+            if (key.getValue() == KeyState.RELEASED) {
+                switch (key.getKey()) {
+                    case ARROW_DOWN:
+                        if (forcedDrop) {
+                            lastDropCounter = (int) Math.round(
+                                (1.0 * lastDropCounter / forcedDropDuration)
+                                * softDropDuration);
+                        }
+                        forcedDrop = false;
+                        gameField.activeShapeSetForcedDrop(false);
                         break;
                 }
             }

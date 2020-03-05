@@ -6,7 +6,6 @@ import static java.lang.Math.min;
 
 public class MoveAnimation implements Animation {
     private final int duration;
-    // private final DoubleVector startCoords, endCoords;
     private final DoubleVector startCoords, endCoords;
     private int currentDuration;
 

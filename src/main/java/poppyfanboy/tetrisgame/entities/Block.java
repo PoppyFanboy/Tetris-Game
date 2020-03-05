@@ -129,10 +129,8 @@ public class Block extends Entity implements TileFieldObject {
         double progress = (n * (Rotation.normalizeAngle(rotationAngle)
                 + Math.PI) / (2 * Math.PI)) % 1;
 
-
         g.drawImage(progress < 0.5 ? left : right,
                 0, 0, null);
-
         float alpha = (float) (progress < 0.5 ? progress : 1 - progress);
         Composite oldComposite = g.getComposite();
         g.setComposite(AlphaComposite
