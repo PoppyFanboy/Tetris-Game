@@ -45,10 +45,14 @@ public class GameField extends Entity implements TileField, Controllable {
     // used to generate new falling shapes
     private final Random random;
 
+
     // stuff related to game logic
     private int level = 1;
     // how many ticks past since last active shape drop
     private int lastDropCounter = 0;
+    // how much time left until the next shape should be spawned
+    // after the previous one completely fell
+    private int appearanceDelayCounter = -1;
 
     private int softDropDuration = Game.TICKS_PER_SECOND / 4;
     private int forcedDropDuration = Game.TICKS_PER_SECOND / 16;
@@ -189,19 +193,15 @@ public class GameField extends Entity implements TileField, Controllable {
      * the latter is made to handle user inputs and usually the animations
      * for those are a bit faster.
      */
-    private boolean activeShapeSoftDrop() {
+    private boolean activeShapeDrop() {
         if (activeShape == null) {
             return false;
         }
         if (tryPut(activeShape, iVect(0, 1), this)) {
-            activeShape.softDrop();
+            activeShape.drop();
             return true;
         }
         return false;
-    }
-
-    private void activeShapeSetForcedDrop(boolean option) {
-        activeShape.setForcedDrop(option);
     }
 
     /**
@@ -330,28 +330,54 @@ public class GameField extends Entity implements TileField, Controllable {
             block.tick();
         }
         lastDropCounter++;
+        if (appearanceDelayCounter != -1) {
+            appearanceDelayCounter--;
+        }
+        if (appearanceDelayCounter == 0) {
+            appearanceDelayCounter = -1;
+            Shape newActiveShape
+                    = Shape.getRandomShapeEvenlyColored(random,
+                    gameState, Rotation.INITIAL, new IntVector(0, 0),
+                    this, TetrisShapeType.class);
+            this.spawnNewActiveShape(newActiveShape);
+            newActiveShape.setForcedDrop(forcedDrop);
+        }
+
         if (lastDropCounter >= softDropDuration && !forcedDrop
                 || lastDropCounter >= forcedDropDuration && forcedDrop) {
-            if (!activeShapeSoftDrop()) {
+            if (activeShapeDrop()) {
+                lastDropCounter = 0;
+            } else {
+                appearanceDelayCounter
+                        = activeShape.getTimeTillAnimationFinishes();
+            }
+            /*if (!activeShapeDrop()) {
                 Shape newActiveShape
                         = Shape.getRandomShapeEvenlyColored(random,
                         gameState, Rotation.INITIAL, new IntVector(0, 0),
                         this, TetrisShapeType.class);
                 this.spawnNewActiveShape(newActiveShape);
                 newActiveShape.setForcedDrop(forcedDrop);
-            }
-            lastDropCounter = 0;
+            }*/
         }
     }
 
     @Override
     public void control(EnumMap<InputKey, KeyState> inputs) {
-        IntVector shift = new IntVector(0, 0);
+        int xShift = 0;
         Rotation rotationDirection = Rotation.INITIAL;
 
         for (EnumMap.Entry<InputKey, KeyState> key : inputs.entrySet()) {
             if (key.getValue() == KeyState.PRESSED) {
                 switch (key.getKey()) {
+                    case ARROW_UP:
+                        Shape newActiveShape
+                                = Shape.getRandomShapeEvenlyColored(random,
+                                gameState, Rotation.INITIAL, new IntVector(0, 0),
+                                this, TetrisShapeType.class);
+                        this.spawnNewActiveShape(newActiveShape);
+                        newActiveShape.setForcedDrop(forcedDrop);
+                        break;
                     case ARROW_DOWN:
                         if (!forcedDrop) {
                             lastDropCounter = (int) Math.round(
@@ -359,13 +385,13 @@ public class GameField extends Entity implements TileField, Controllable {
                                 * forcedDropDuration);
                         }
                         forcedDrop = true;
-                        activeShapeSetForcedDrop(true);
+                        activeShape.setForcedDrop(true);
                         break;
                     case ARROW_LEFT:
-                        shift = shift.add(-1, 0);
+                        xShift--;
                         break;
                     case ARROW_RIGHT:
-                        shift = shift.add(1, 0);
+                        xShift++;
                         break;
                     case W:
                         rotationDirection
@@ -386,13 +412,17 @@ public class GameField extends Entity implements TileField, Controllable {
                                 * softDropDuration);
                         }
                         forcedDrop = false;
-                        activeShapeSetForcedDrop(false);
+                        activeShape.setForcedDrop(false);
+                        lastDropCounter = 0;
                         break;
                 }
             }
         }
-        if (!shift.equals(new IntVector(0, 0))) {
-            shiftActiveShape(shift);
+        if (xShift != 0) {
+            if (activeShape != null
+                    && tryPut(activeShape, new IntVector(xShift, 0), this)) {
+                activeShape.userControl(xShift);
+            }
         }
 
         if (rotationDirection.equals(Rotation.LEFT)

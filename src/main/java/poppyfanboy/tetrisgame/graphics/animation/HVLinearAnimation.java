@@ -61,6 +61,11 @@ public class HVLinearAnimation implements Animation {
         return currentDuration >= duration;
     }
 
+    @Override
+    public int timeLeft() {
+        return Math.max(0, duration - currentDuration);
+    }
+
     public void changeDuration(int newDuration) {
         currentDuration = (int) Math.round(
                 (1.0 * currentDuration / duration) * newDuration);

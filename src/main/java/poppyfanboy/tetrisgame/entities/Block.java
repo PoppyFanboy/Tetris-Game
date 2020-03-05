@@ -1,6 +1,7 @@
 package poppyfanboy.tetrisgame.entities;
 
 import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
 import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
@@ -109,6 +110,14 @@ public class Block extends Entity implements TileFieldObject {
 
     @Override
     public void render(Graphics2D g, double interpolation) {
+        // draw blocks as they are on the tile field
+        /*final int blockWidth = gameState.getBlockWidth();
+        g.setColor(BlockColor.BLUE.getColor());
+        g.setStroke(new BasicStroke(2));
+        g.drawRect(tileCoords.getX() * blockWidth + 20,
+                tileCoords.getY() * blockWidth + 20,
+                blockWidth, blockWidth);*/
+
         double rotationAngle
                 = getGlobalTransform().getRotation().getAngle();
 
@@ -131,6 +140,7 @@ public class Block extends Entity implements TileFieldObject {
 
         g.drawImage(progress < 0.5 ? left : right,
                 0, 0, null);
+
         float alpha = (float) (progress < 0.5 ? progress : 1 - progress);
         Composite oldComposite = g.getComposite();
         g.setComposite(AlphaComposite

@@ -9,6 +9,7 @@ import java.util.Random;
 
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.graphics.animation.HVLinearAnimation;
+import poppyfanboy.tetrisgame.graphics.animation.MoveAnimation;
 import poppyfanboy.tetrisgame.graphics.animation.RotateAnimation;
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.states.GameState;
@@ -45,9 +46,10 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     // each new animation cancels the previous one (the exception is
     // two consecutive rotation animations in the same direction),
     // thus there is no need for the list of present animations so far
-    private HVLinearAnimation moveAnimation;
-    private HVLinearAnimation softDropAnimation;
+    private HVLinearAnimation userControlAnimation;
+    private HVLinearAnimation dropAnimation;
     private RotateAnimation rotateAnimation;
+    private MoveAnimation moveAnimation;
 
     // the shape will drop slightly faster when the player is holding
     // the down key
@@ -222,7 +224,7 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         return true;
     }
 
-    public void softDrop() {
+    public void drop() {
         tileCoords = tileCoords.add(0, 1);
         for (Block block : blocks) {
             block.tileShift(iVect(0, 1));
@@ -231,19 +233,31 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         int animationDuration = isForcedToDrop
                 ? gameField.getForcedDropAnimationDuration()
                 : gameField.getSoftDropAnimationDuration();
-        softDropAnimation = HVLinearAnimation.getVerticalAnimation(
+        dropAnimation = HVLinearAnimation.getVerticalAnimation(
                 coords.getY(), tileCoords.getY() * blockWidth,
                 animationDuration, blockWidth);
     }
 
+    public void userControl(int dx) {
+        IntVector shift = new IntVector(dx, 0);
+        tileCoords = tileCoords.add(shift);
+        for (Block block : blocks) {
+            block.tileShift(shift);
+        }
+        final int blockWidth = gameState.getBlockWidth();
+        userControlAnimation = HVLinearAnimation.getHorizontalAnimation(
+                coords.getX(), tileCoords.getX() * blockWidth,
+                gameField.getUserControlAnimationDuration(), blockWidth);
+    }
+
     public void setForcedDrop(boolean option) {
         if (option != isForcedToDrop) {
-            if (softDropAnimation != null) {
+            if (dropAnimation != null) {
                 if (option) {
-                    softDropAnimation.changeDuration(
+                    dropAnimation.changeDuration(
                             gameField.getForcedDropAnimationDuration());
                 } else {
-                    softDropAnimation.changeDuration(
+                    dropAnimation.changeDuration(
                             gameField.getSoftDropAnimationDuration());
                 }
             }
@@ -263,10 +277,9 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         for (Block block : blocks) {
             block.tileShift(shift);
         }
-
         final int blockWidth = gameState.getBlockWidth();
-        moveAnimation = HVLinearAnimation.getHorizontalAnimation(
-                coords.getX(), tileCoords.getX() * blockWidth,
+        moveAnimation = new MoveAnimation(
+                coords, tileCoords.times(blockWidth).toDouble(),
                 gameField.getUserControlAnimationDuration(), blockWidth);
     }
 
@@ -313,9 +326,13 @@ public class Shape extends Entity implements TileFieldObject, Animated {
             rotateAnimation.tick();
             rotateAnimation.perform(this);
         }
-        if (softDropAnimation != null && !softDropAnimation.finished()) {
-            softDropAnimation.tick();
-            softDropAnimation.perform(this);
+        if (dropAnimation != null && !dropAnimation.finished()) {
+            dropAnimation.tick();
+            dropAnimation.perform(this);
+        }
+        if (userControlAnimation != null && !userControlAnimation.finished()) {
+            userControlAnimation.tick();
+            userControlAnimation.perform(this);
         }
         if (moveAnimation != null && !moveAnimation.finished()) {
             moveAnimation.tick();
@@ -332,8 +349,11 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         if (rotateAnimation != null && !rotateAnimation.finished()) {
             rotateAnimation.perform(this, interpolation);
         }
-        if (softDropAnimation != null && !softDropAnimation.finished()) {
-            softDropAnimation.perform(this, interpolation);
+        if (dropAnimation != null && !dropAnimation.finished()) {
+            dropAnimation.perform(this, interpolation);
+        }
+        if (userControlAnimation != null && !userControlAnimation.finished()) {
+            userControlAnimation.perform(this, interpolation);
         }
         if (moveAnimation != null && !moveAnimation.finished()) {
             moveAnimation.perform(this, interpolation);
@@ -346,9 +366,7 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         /*DoubleVector[] convexHull = this.getConvexHull();
         g.setColor(BlockColor.BLUE.getColor());
         g.setStroke(new BasicStroke(2));
-        for (int i = 0; i < convexHull.length; i++) {
-            convexHull[i] = convexHull[i].add(fitDX, fitDY);
-        }
+
         g.drawPolygon(DoubleVector.getIntX(convexHull),
             DoubleVector.getIntY(convexHull), convexHull.length);*/
     }
@@ -441,6 +459,14 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     @Override
     public void setRotationAngle(double newRotationAngle) {
         rotationAngle = newRotationAngle;
+    }
+
+    @Override
+    public int getTimeTillAnimationFinishes() {
+        return Math.max(
+            rotateAnimation == null ? 0 : rotateAnimation.timeLeft(),
+            Math.max(userControlAnimation == null ? 0 : userControlAnimation.timeLeft(),
+            dropAnimation == null ? 0 : dropAnimation.timeLeft()));
     }
 
     @Override

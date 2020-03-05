@@ -16,4 +16,11 @@ public interface Animated {
     void setCoords(DoubleVector newCoords);
     DoubleVector getCoords();
     void setRotationAngle(double newRotationAngle);
+
+    /**
+     * In case there are any animations applied to the object, returns
+     * the duration of the longest animation among all of them. Otherwise
+     * returns {@code 0}.
+     */
+    int getTimeTillAnimationFinishes();
 }
