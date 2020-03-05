@@ -2,13 +2,12 @@ package poppyfanboy.tetrisgame.entities;
 
 import java.awt.Graphics2D;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumMap;
-import java.util.LinkedList;
-import java.util.List;
-
+import java.util.NavigableMap;
 import java.util.Random;
+import java.util.TreeMap;
+
 import poppyfanboy.tetrisgame.Game;
 import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
 import poppyfanboy.tetrisgame.input.Controllable;
@@ -32,9 +31,12 @@ public class GameField extends Entity implements TileField, Controllable {
     // the game state to which this game field belongs
     private GameState gameState;
 
+    // do something with the possible null pointer exception errors
     private Shape activeShape;
-    // probably replace with tree set later
-    private List<Block> fallenBlocks = new LinkedList<>();
+    // sort blocks by Y coordinate from the top to the bottom
+    // (in a row-major order) (maps coordinates to the block entities)
+    private NavigableMap<IntVector, Block> fallenBlocks
+            = new TreeMap<>(IntVector.Y_ORDER);
 
     private DoubleVector coords;
     private double rotationAngle;
@@ -96,14 +98,6 @@ public class GameField extends Entity implements TileField, Controllable {
         spawnNewActiveShape(activeShape);
     }
 
-    public void pause() {
-        // implementation
-    }
-
-    public void stop() {
-        // implementation
-    }
-
     public int getRotateAnimationDuration() {
         return softDropDuration / 4;
     }
@@ -133,48 +127,12 @@ public class GameField extends Entity implements TileField, Controllable {
         }
         // glue the previously active shape to the field
         if (activeShape != null) {
-            fallenBlocks.addAll(Arrays.asList(activeShape.getBlocks()));
+            for (Block block : activeShape.getBlocks()) {
+               fallenBlocks.put(block.getTileCoords(), block);
+            }
         }
         activeShape = newShape;
         return true;
-    }
-
-    // shifts the shape, puts it into the specified rotation and tries
-    // to insert it into this new position without actually mutating
-    // the entity itself
-    private static boolean tryPut(Shape shape, IntVector shiftDirection,
-            Rotation rotation, GameField field) {
-        // check for out of bounds indices
-        if (!shape.shiftedBoundsCheck(shiftDirection, rotation,
-                field.widthInBlocks, field.heightInBlocks)) {
-            return false;
-        }
-        // check for collisions
-        for (Block block : field.fallenBlocks) {
-            if (shape.checkShiftedCollision(block.getTileCoords(),
-                    shiftDirection, rotation)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    // does not rotate the shape
-    private static boolean tryPut(Shape shape, IntVector shiftDirection,
-            GameField field) {
-        return tryPut(shape, shiftDirection, shape.getRotation(), field);
-    }
-
-    // does not shift the shape
-    private static boolean tryPut(Shape shape, Rotation rotation,
-            GameField field) {
-        return tryPut(shape, new IntVector(0, 0), rotation, field);
-    }
-
-    // tries to put the shape as it is
-    private static boolean tryPut(Shape shape, GameField field) {
-        return
-            tryPut(shape, new IntVector(0, 0), shape.getRotation(), field);
     }
 
     /**
@@ -252,6 +210,47 @@ public class GameField extends Entity implements TileField, Controllable {
         }
     }
 
+    /**
+     * There is no need in checking the whole set of the blocks, since
+     * when the shape falls it can make at most 4 filled rows, so
+     * we can restrict the searching area to 4 specific rows
+     * (from startY to endY, boundaries included)
+     */
+    private void removeFilledRows(int startY, int endY) {
+        assert startY <= endY;
+
+        final int width = getWidthInBlocks();
+        IntVector startCoords = new IntVector(0, startY);
+        IntVector endCoords = new IntVector(width - 1, endY);
+        // * the iterator returns the blocks in the ascending order
+        Collection<Block> blocks
+                = fallenBlocks.subMap(startCoords, true, endCoords, true)
+                .values();
+        int currentRow = startY - 1;
+
+        // all blocks that will be removed
+        ArrayList<Block> clearedLines = new ArrayList<>();
+        // current same-row-blocks-streak
+        ArrayList<Block> currentRowBlocks = new ArrayList<>();
+        for (Block block : blocks) {
+            if (currentRow != block.getTileCoords().getY()) {
+                if (currentRowBlocks.size() == width) {
+                    clearedLines.addAll(currentRowBlocks);
+                }
+                currentRowBlocks.clear();
+                currentRowBlocks.add(block);
+                currentRow = block.getTileCoords().getY();
+            } else {
+                currentRowBlocks.add(block);
+            }
+        }
+        // the last row
+        if (currentRowBlocks.size() == width) {
+            clearedLines.addAll(currentRowBlocks);
+        }
+        blocks.removeAll(clearedLines);
+    }
+
     @Override
     public int getWidthInBlocks() {
         return widthInBlocks;
@@ -264,7 +263,8 @@ public class GameField extends Entity implements TileField, Controllable {
 
     @Override
     public Collection<? extends TileFieldObject> getObjects() {
-        ArrayList<TileFieldObject> objects = new ArrayList<>(fallenBlocks);
+        ArrayList<TileFieldObject> objects
+                = new ArrayList<>(fallenBlocks.values());
         if (activeShape != null) {
             objects.add(activeShape);
         }
@@ -309,7 +309,7 @@ public class GameField extends Entity implements TileField, Controllable {
         if (activeShape != null) {
             activeShape.render(g, interpolation);
         }
-        for (Block block : fallenBlocks) {
+        for (Block block : fallenBlocks.values()) {
             block.render(g, interpolation);
         }
     }
@@ -329,7 +329,7 @@ public class GameField extends Entity implements TileField, Controllable {
         if (activeShape != null) {
             activeShape.tick();
         }
-        for (Block block : fallenBlocks) {
+        for (Block block : fallenBlocks.values()) {
             block.tick();
         }
         lastDropCounter++;
@@ -340,12 +340,17 @@ public class GameField extends Entity implements TileField, Controllable {
         if (appearanceDelayTimer == 0) {
             appearanceDelayTimer = -1;
             shapeFallen = false;
+
+            final int startY = activeShape.getTileCoords().getY();
             Shape newActiveShape
                     = Shape.getRandomShapeEvenlyColored(random,
                     gameState, Rotation.INITIAL, new IntVector(0, 0),
                     this, TetrisShapeType.class);
             this.spawnNewActiveShape(newActiveShape);
             newActiveShape.setForcedDrop(forcedDrop);
+
+            // the old active shape first needs to be broken into blocks
+            removeFilledRows(startY, startY + 3);
         }
 
         if (lastDropCounter >= softDropDuration && !forcedDrop
@@ -423,5 +428,43 @@ public class GameField extends Entity implements TileField, Controllable {
                 || rotationDirection.equals(Rotation.RIGHT))) {
             rotateActiveShape(rotationDirection);
         }
+    }
+
+    // shifts the shape, puts it into the specified rotation and tries
+    // to insert it into this new position without actually mutating
+    // the entity itself
+    private static boolean tryPut(Shape shape, IntVector shiftDirection,
+                                  Rotation rotation, GameField field) {
+        // check for out of bounds indices
+        if (!shape.shiftedBoundsCheck(shiftDirection, rotation,
+                field.widthInBlocks, field.heightInBlocks)) {
+            return false;
+        }
+        // check for collisions
+        for (Block block : field.fallenBlocks.values()) {
+            if (shape.checkShiftedCollision(block.getTileCoords(),
+                    shiftDirection, rotation)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // does not rotate the shape
+    private static boolean tryPut(Shape shape, IntVector shiftDirection,
+                                  GameField field) {
+        return tryPut(shape, shiftDirection, shape.getRotation(), field);
+    }
+
+    // does not shift the shape
+    private static boolean tryPut(Shape shape, Rotation rotation,
+                                  GameField field) {
+        return tryPut(shape, new IntVector(0, 0), rotation, field);
+    }
+
+    // tries to put the shape as it is
+    private static boolean tryPut(Shape shape, GameField field) {
+        return
+                tryPut(shape, new IntVector(0, 0), shape.getRotation(), field);
     }
 }

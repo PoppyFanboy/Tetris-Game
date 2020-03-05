@@ -1,5 +1,7 @@
 package poppyfanboy.tetrisgame.util;
 
+import java.util.Comparator;
+
 /**
  * A simple convenience class used to hold the integer coordinates of a
  * point. The very same functionality is provided by using the
@@ -8,6 +10,11 @@ package poppyfanboy.tetrisgame.util;
  * set of possible values.
  */
 public class IntVector {
+    public static Comparator<IntVector> Y_ORDER = (p1, p2) ->
+            p1.y != p2.y
+                ? Integer.compare(p1.y, p2.y)
+                : Integer.compare(p1.x, p2.x);
+
     private int x, y;
 
     public IntVector(int x, int y) {

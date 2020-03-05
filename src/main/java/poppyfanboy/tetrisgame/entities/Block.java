@@ -176,4 +176,9 @@ public class Block extends Entity implements TileFieldObject {
     public IntVector getTileCoords() {
         return tileCoords;
     }
+
+    @Override
+    public String toString() {
+        return tileCoords.toString();
+    }
 }
