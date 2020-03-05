@@ -330,7 +330,8 @@ public class Shape extends Entity implements TileFieldObject, Animated {
             dropAnimation.tick();
             dropAnimation.perform(this);
         }
-        if (userControlAnimation != null && !userControlAnimation.finished()) {
+        if (userControlAnimation != null
+                && !userControlAnimation.finished()) {
             userControlAnimation.tick();
             userControlAnimation.perform(this);
         }
@@ -352,7 +353,8 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         if (dropAnimation != null && !dropAnimation.finished()) {
             dropAnimation.perform(this, interpolation);
         }
-        if (userControlAnimation != null && !userControlAnimation.finished()) {
+        if (userControlAnimation != null
+                && !userControlAnimation.finished()) {
             userControlAnimation.perform(this, interpolation);
         }
         if (moveAnimation != null && !moveAnimation.finished()) {
@@ -464,9 +466,20 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     @Override
     public int getTimeTillAnimationFinishes() {
         return Math.max(
-            rotateAnimation == null ? 0 : rotateAnimation.timeLeft(),
-            Math.max(userControlAnimation == null ? 0 : userControlAnimation.timeLeft(),
-            dropAnimation == null ? 0 : dropAnimation.timeLeft()));
+            rotateAnimation == null
+                ? 0
+                : rotateAnimation.timeLeft(),
+            Math.max(
+                userControlAnimation == null
+                    ? 0
+                    : userControlAnimation.timeLeft(),
+                Math.max(
+                    dropAnimation == null
+                        ? 0
+                        : dropAnimation.timeLeft(),
+                    moveAnimation == null
+                        ? 0
+                        : moveAnimation.timeLeft())));
     }
 
     @Override

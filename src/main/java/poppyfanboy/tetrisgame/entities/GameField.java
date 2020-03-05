@@ -50,9 +50,11 @@ public class GameField extends Entity implements TileField, Controllable {
     private int level = 1;
     // how many ticks past since last active shape drop
     private int lastDropCounter = 0;
+
     // how much time left until the next shape should be spawned
     // after the previous one completely fell
-    private int appearanceDelayCounter = -1;
+    private int appearanceDelayTimer = -1;
+    private boolean shapeFallen = false;
 
     private int softDropDuration = Game.TICKS_PER_SECOND / 4;
     private int forcedDropDuration = Game.TICKS_PER_SECOND / 16;
@@ -316,7 +318,8 @@ public class GameField extends Entity implements TileField, Controllable {
     public DoubleVector[] getVertices() {
         Transform globalTransform = getGlobalTransform();
         return globalTransform.apply(new DoubleVector[] {
-            DoubleVector.dVect(0, 0), DoubleVector.dVect(0, heightInBlocks),
+            DoubleVector.dVect(0, 0),
+            DoubleVector.dVect(0, heightInBlocks),
             DoubleVector.dVect(widthInBlocks, heightInBlocks),
             DoubleVector.dVect(widthInBlocks, 0)});
     }
@@ -330,11 +333,13 @@ public class GameField extends Entity implements TileField, Controllable {
             block.tick();
         }
         lastDropCounter++;
-        if (appearanceDelayCounter != -1) {
-            appearanceDelayCounter--;
+
+        if (appearanceDelayTimer > 0) {
+            appearanceDelayTimer--;
         }
-        if (appearanceDelayCounter == 0) {
-            appearanceDelayCounter = -1;
+        if (appearanceDelayTimer == 0) {
+            appearanceDelayTimer = -1;
+            shapeFallen = false;
             Shape newActiveShape
                     = Shape.getRandomShapeEvenlyColored(random,
                     gameState, Rotation.INITIAL, new IntVector(0, 0),
@@ -348,17 +353,10 @@ public class GameField extends Entity implements TileField, Controllable {
             if (activeShapeDrop()) {
                 lastDropCounter = 0;
             } else {
-                appearanceDelayCounter
+                appearanceDelayTimer
                         = activeShape.getTimeTillAnimationFinishes();
+                shapeFallen = true;
             }
-            /*if (!activeShapeDrop()) {
-                Shape newActiveShape
-                        = Shape.getRandomShapeEvenlyColored(random,
-                        gameState, Rotation.INITIAL, new IntVector(0, 0),
-                        this, TetrisShapeType.class);
-                this.spawnNewActiveShape(newActiveShape);
-                newActiveShape.setForcedDrop(forcedDrop);
-            }*/
         }
     }
 
@@ -370,14 +368,6 @@ public class GameField extends Entity implements TileField, Controllable {
         for (EnumMap.Entry<InputKey, KeyState> key : inputs.entrySet()) {
             if (key.getValue() == KeyState.PRESSED) {
                 switch (key.getKey()) {
-                    case ARROW_UP:
-                        Shape newActiveShape
-                                = Shape.getRandomShapeEvenlyColored(random,
-                                gameState, Rotation.INITIAL, new IntVector(0, 0),
-                                this, TetrisShapeType.class);
-                        this.spawnNewActiveShape(newActiveShape);
-                        newActiveShape.setForcedDrop(forcedDrop);
-                        break;
                     case ARROW_DOWN:
                         if (!forcedDrop) {
                             lastDropCounter = (int) Math.round(
@@ -418,15 +408,19 @@ public class GameField extends Entity implements TileField, Controllable {
                 }
             }
         }
-        if (xShift != 0) {
+        // for now just block controls when the shape falls completely
+        // on the ground; later change it in a way that hitting control
+        // buttons in this state, when the old shape fell but a new
+        // one has not yet spawned, would change the initial position
+        // of a newly spawned shape
+        if (xShift != 0 && !shapeFallen) {
             if (activeShape != null
                     && tryPut(activeShape, new IntVector(xShift, 0), this)) {
                 activeShape.userControl(xShift);
             }
         }
-
-        if (rotationDirection.equals(Rotation.LEFT)
-                || rotationDirection.equals(Rotation.RIGHT)) {
+        if (!shapeFallen && (rotationDirection.equals(Rotation.LEFT)
+                || rotationDirection.equals(Rotation.RIGHT))) {
             rotateActiveShape(rotationDirection);
         }
     }
