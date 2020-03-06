@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Random;
 
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
+import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
 import poppyfanboy.tetrisgame.graphics.animation.HVLinearAnimation;
 import poppyfanboy.tetrisgame.graphics.animation.MoveAnimation;
 import poppyfanboy.tetrisgame.graphics.animation.RotateAnimation;
@@ -265,6 +266,10 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         }
     }
 
+    public void interruptDropAnimation() {
+        dropAnimation = null;
+    }
+
     @Override
     public IntVector getTileCoords() {
         return tileCoords;
@@ -504,8 +509,8 @@ public class Shape extends Entity implements TileFieldObject, Animated {
                 = (ShapeType) Util.getRandomInstance(random, shapeTypes);
         BlockColor randomColor
                 = Util.getRandomInstance(random, BlockColor.class);
-        return new Shape(gameState, randomType, rotation, tileCoords,
-                randomColor, gameField);
+        return new Shape(gameState, TetrisShapeType.T_SHAPE, rotation,
+                tileCoords, randomColor, gameField);
     }
 
     @SafeVarargs

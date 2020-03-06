@@ -58,7 +58,7 @@ public class Transform {
 
     public Transform combine(Transform other) {
         return new Transform(
-                this.rotation.combine(other.rotation),
+                other.rotation.combine(this.rotation),
                 other.apply(this.translation));
     }
 

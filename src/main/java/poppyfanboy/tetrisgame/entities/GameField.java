@@ -6,12 +6,8 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.NavigableMap;
 import java.util.Random;
-import java.util.SortedMap;
-import java.util.SortedSet;
 import java.util.TreeMap;
 
-import java.util.TreeSet;
-import org.checkerframework.checker.units.qual.A;
 import poppyfanboy.tetrisgame.Game;
 import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
 import poppyfanboy.tetrisgame.input.Controllable;
@@ -207,6 +203,8 @@ public class GameField extends Entity implements TileField, Controllable {
                     // rotate and wall kick
                     activeShape.rotate(rotationDirection);
                     activeShape.tileShift(shift);
+                    activeShape.interruptDropAnimation();
+                    lastDropCounter = Math.max(softDropDuration, forcedDropDuration);
                     return true;
                 }
             }
@@ -258,7 +256,7 @@ public class GameField extends Entity implements TileField, Controllable {
         removalCandidates.removeAll(removedBlocks);
 
         // move down rows that were above the cleared rows
-        if (clearedLinesIndices.size() != 0) {
+        /*if (clearedLinesIndices.size() != 0) {
             Collection<Block> blocksFallingDown = fallenBlocks.subMap(
                     new IntVector(0, 0), true,
                     new IntVector(width - 1, clearedLinesIndices.get(clearedLinesIndices.size() - 1)), false).values();
@@ -288,7 +286,7 @@ public class GameField extends Entity implements TileField, Controllable {
                 fallenBlocks.remove(oldKeys.get(i));
                 fallenBlocks.put(block.getTileCoords(), block);
             }
-        }
+        }*/
     }
 
     @Override
@@ -374,7 +372,7 @@ public class GameField extends Entity implements TileField, Controllable {
         }
         lastDropCounter++;
 
-        if (appearanceDelayTimer > 0) {
+        if (shapeFallen && appearanceDelayTimer > 0) {
             appearanceDelayTimer--;
         }
         if (appearanceDelayTimer == 0) {
@@ -448,7 +446,6 @@ public class GameField extends Entity implements TileField, Controllable {
                         }
                         forcedDrop = false;
                         activeShape.setForcedDrop(false);
-                        lastDropCounter = 0;
                         break;
                 }
             }
