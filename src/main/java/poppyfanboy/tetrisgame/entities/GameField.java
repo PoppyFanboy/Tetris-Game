@@ -94,7 +94,7 @@ public class GameField extends Entity implements TileField, Controllable {
     public void start() {
         Shape activeShape = Shape.getRandomShapeEvenlyColored(random,
                 gameState, Rotation.INITIAL, new IntVector(0, 0), this,
-                TetrisShapeType.class);
+                this, TetrisShapeType.class);
         spawnNewActiveShape(activeShape);
     }
 
@@ -127,7 +127,7 @@ public class GameField extends Entity implements TileField, Controllable {
         }
         // glue the previously active shape to the field
         if (activeShape != null) {
-            for (Block block : activeShape.getBlocks()) {
+            for (Block block : activeShape.getBlocks(this)) {
                fallenBlocks.put(block.getTileCoords(), block);
             }
         }
@@ -256,7 +256,7 @@ public class GameField extends Entity implements TileField, Controllable {
         removalCandidates.removeAll(removedBlocks);
 
         // move down rows that were above the cleared rows
-        /*if (clearedLinesIndices.size() != 0) {
+        if (clearedLinesIndices.size() != 0) {
             Collection<Block> blocksFallingDown = fallenBlocks.subMap(
                     new IntVector(0, 0), true,
                     new IntVector(width - 1, clearedLinesIndices.get(clearedLinesIndices.size() - 1)), false).values();
@@ -275,7 +275,8 @@ public class GameField extends Entity implements TileField, Controllable {
                 oldKeys.add(oldCoords);
                 // newKeys.add(newCoords);
 
-                block.tileShift(new IntVector(0, closestRemovedRowIndex + 1));
+                // block.tileShift(new IntVector(0, closestRemovedRowIndex + 1));
+                block.dropDown(closestRemovedRowIndex + 1);
             }
 
             // update the fallenBlocks set
@@ -286,7 +287,7 @@ public class GameField extends Entity implements TileField, Controllable {
                 fallenBlocks.remove(oldKeys.get(i));
                 fallenBlocks.put(block.getTileCoords(), block);
             }
-        }*/
+        }
     }
 
     @Override
@@ -383,7 +384,7 @@ public class GameField extends Entity implements TileField, Controllable {
             Shape newActiveShape
                     = Shape.getRandomShapeEvenlyColored(random,
                     gameState, Rotation.INITIAL, new IntVector(0, 0),
-                    this, TetrisShapeType.class);
+                    this, this, TetrisShapeType.class);
             this.spawnNewActiveShape(newActiveShape);
             newActiveShape.setForcedDrop(forcedDrop);
 

@@ -38,6 +38,7 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     private Block[] blocks;
 
     private GameField gameField;
+    private Entity parentEntity;
 
     // visual representation
     private double rotationAngle;
@@ -64,12 +65,14 @@ public class Shape extends Entity implements TileFieldObject, Animated {
      */
     public Shape(GameState gameState, ShapeType shapeType,
             Rotation rotation, IntVector tileCoords,
-            BlockColor[] blockColors, GameField gameField) {
+            BlockColor[] blockColors, GameField gameField,
+            Entity parentEntity) {
         this.gameState = gameState;
         this.shapeType = shapeType;
         this.rotation = rotation;
         this.tileCoords = tileCoords;
         this.gameField = gameField;
+        this.parentEntity = parentEntity;
 
         final int blockWidth = gameState.getBlockWidth();
         coords = tileCoords.times(blockWidth).toDouble();
@@ -102,9 +105,10 @@ public class Shape extends Entity implements TileFieldObject, Animated {
      */
     public Shape(GameState gameState, ShapeType shapeType,
             Rotation rotation, IntVector tileCoords, BlockColor blockColor,
-            GameField gameField) {
+            GameField gameField, Entity parentEntity) {
         this(gameState, shapeType, rotation, tileCoords,
-                generateColorsArray(shapeType, blockColor), gameField);
+                generateColorsArray(shapeType, blockColor), gameField,
+                parentEntity);
     }
 
     /**
@@ -124,8 +128,13 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     /**
      * Retrieve the block entities of which the shape consists.
      */
-    public Block[] getBlocks() {
-        return blocks;
+    public Block[] getBlocks(GameField gameField) {
+        Block[] blocksCopy = new Block[blocks.length];
+        final int blockWidth = gameState.getBlockWidth();
+        for (int i = 0; i < blocksCopy.length; i++) {
+            blocksCopy[i] = new Block(blocks[i], gameField, blocks[i].getTileCoords().times(blockWidth).toDouble());
+        }
+        return blocksCopy;
     }
 
     public void rotate(Rotation rotationDirection) {
@@ -381,7 +390,7 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     @Override
     public DoubleVector[] getVertices() {
         List<DoubleVector> points = new ArrayList<>();
-        for (Block block : getBlocks()) {
+        for (Block block : blocks) {
             points.addAll(Arrays.asList(block.getVertices()));
         }
         return points.toArray(new DoubleVector[0]);
@@ -394,11 +403,11 @@ public class Shape extends Entity implements TileFieldObject, Animated {
 
     @Override
     public Transform getGlobalTransform() {
-        if (gameField != null) {
+        if (parentEntity != null) {
             final int blockWidth = gameState.getBlockWidth();
             DoubleVector[] convexHull = shapeType.getConvexHull();
             Transform globalTransform = getLocalTransform()
-                        .combine(gameField.getGlobalTransform());
+                        .combine(parentEntity.getGlobalTransform());
             for (int i = 0; i < convexHull.length; i++) {
                 convexHull[i] = globalTransform
                         .apply(convexHull[i].times(blockWidth));
@@ -409,9 +418,9 @@ public class Shape extends Entity implements TileFieldObject, Animated {
             // (x1, y1) - upper left corner of the game field
             // (x2, y2) - bottom right corner of the game field
             double x1
-                = gameField.getGlobalTransform().getTranslation().getX();
+                = parentEntity.getGlobalTransform().getTranslation().getX();
             double y1
-                = gameField.getGlobalTransform().getTranslation().getY();
+                = parentEntity.getGlobalTransform().getTranslation().getY();
             double x2 = x1 + width, y2 = y1 + height;
 
             // additional shifts to try to put the shape inside the game
@@ -504,20 +513,20 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     public static <E extends Enum<? extends ShapeType>> Shape
         getRandomShapeEvenlyColored(Random random, GameState gameState,
             Rotation rotation, IntVector tileCoords, GameField gameField,
-            Class<? extends E>... shapeTypes) {
+            Entity parentEntity, Class<? extends E>... shapeTypes) {
         ShapeType randomType
                 = (ShapeType) Util.getRandomInstance(random, shapeTypes);
         BlockColor randomColor
                 = Util.getRandomInstance(random, BlockColor.class);
         return new Shape(gameState, TetrisShapeType.T_SHAPE, rotation,
-                tileCoords, randomColor, gameField);
+                tileCoords, randomColor, gameField, parentEntity);
     }
 
     @SafeVarargs
     public static <E extends Enum<? extends ShapeType>> Shape
         getRandomShapeRandomlyColored(Random random, GameState gameState,
             Rotation rotation, IntVector tileCoords, GameField gameField,
-            Class<? extends E>... shapeTypes) {
+            Entity parentEntity, Class<? extends E>... shapeTypes) {
         ShapeType randomType
                 = (ShapeType) Util.getRandomInstance(random, shapeTypes);
         // count solid blocks
@@ -528,6 +537,6 @@ public class Shape extends Entity implements TileFieldObject, Animated {
                     = Util.getRandomInstance(random, BlockColor.class);
         }
         return new Shape(gameState, randomType, rotation, tileCoords,
-                randomColors, gameField);
+                randomColors, gameField, parentEntity);
     }
 }
