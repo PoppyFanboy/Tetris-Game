@@ -165,8 +165,4 @@ public class Game implements Runnable {
     public int getHeight() {
         return height;
     }
-
-    public int getBlockWidth() {
-        return blockWidth;
-    }
 }

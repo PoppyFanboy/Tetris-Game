@@ -402,57 +402,6 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     }
 
     @Override
-    public Transform getGlobalTransform() {
-        if (parentEntity != null) {
-            final int blockWidth = gameState.getBlockWidth();
-            DoubleVector[] convexHull = shapeType.getConvexHull();
-            Transform globalTransform = getLocalTransform()
-                        .combine(parentEntity.getGlobalTransform());
-            for (int i = 0; i < convexHull.length; i++) {
-                convexHull[i] = globalTransform
-                        .apply(convexHull[i].times(blockWidth));
-            }
-
-            int width = gameField.getWidthInBlocks() * blockWidth;
-            int height = gameField.getHeightInBlocks() * blockWidth;
-            // (x1, y1) - upper left corner of the game field
-            // (x2, y2) - bottom right corner of the game field
-            double x1
-                = parentEntity.getGlobalTransform().getTranslation().getX();
-            double y1
-                = parentEntity.getGlobalTransform().getTranslation().getY();
-            double x2 = x1 + width, y2 = y1 + height;
-
-            // additional shifts to try to put the shape inside the game
-            // field frame
-            int fitDX = 0, fitDY = 0;
-            for (DoubleVector point : convexHull) {
-                if (point.getX() < x1
-                        && abs(x1 - point.getX()) > abs(fitDX)) {
-                    fitDX = (int) (x1 - point.getX());
-                }
-                if (point.getX() > x2
-                        && abs(x2 - point.getX()) > abs(fitDX)) {
-                    fitDX = (int) (x2 - point.getX());
-                }
-                if (point.getY() < y1
-                        && abs(y1 - point.getY()) > abs(fitDY)) {
-                    fitDY = (int) (y1 - point.getY());
-                }
-                if (point.getY() > y2
-                        && abs(y2 - point.getY()) > abs(fitDY)) {
-                    fitDY = (int) (y2 - point.getY());
-                }
-            }
-
-            return globalTransform.combine(
-                    new Transform(new DoubleVector(fitDX, fitDY)));
-        } else {
-            return getLocalTransform();
-        }
-    }
-
-    @Override
     public Transform getLocalTransform() {
         final int blockWidth = gameState.getBlockWidth();
 
@@ -460,6 +409,11 @@ public class Shape extends Entity implements TileFieldObject, Animated {
             = coords.add(shapeType.getRotationPivot().times(blockWidth));
         return new Transform(coords)
             .combine(Transform.getRotation(rotationAngle, rotationPivot));
+    }
+
+    @Override
+    public boolean needsAdditionalTransform() {
+        return true;
     }
 
     @Override
@@ -499,12 +453,11 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     @Override
     public DoubleVector[] getConvexHull() {
         final int blockWidth = gameState.getBlockWidth();
-        Transform globalTransform = getGlobalTransform();
 
         DoubleVector[] convexHull = shapeType.getConvexHull();
         for (int i = 0; i < convexHull.length; i++) {
-            convexHull[i]
-                = globalTransform.apply(convexHull[i].times(blockWidth));
+            convexHull[i] = getLocalTransform()
+                    .apply(convexHull[i].times(blockWidth));
         }
         return convexHull;
     }
@@ -518,7 +471,7 @@ public class Shape extends Entity implements TileFieldObject, Animated {
                 = (ShapeType) Util.getRandomInstance(random, shapeTypes);
         BlockColor randomColor
                 = Util.getRandomInstance(random, BlockColor.class);
-        return new Shape(gameState, TetrisShapeType.T_SHAPE, rotation,
+        return new Shape(gameState, randomType, rotation,
                 tileCoords, randomColor, gameField, parentEntity);
     }
 

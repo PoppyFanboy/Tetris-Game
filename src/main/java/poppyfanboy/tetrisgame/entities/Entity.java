@@ -28,6 +28,65 @@ public abstract class Entity {
         return DoubleVector.getConvexHull(getVertices(), 1e-8);
     }
 
+    /**
+     * Returns a transformation of the 2D plane that the entity imposes.
+     * For example, if we'd have a game field entity that would've
+     * contained some game objects, the transformation of the game field
+     * entity would be the shift vector, that positions the game field
+     * on the screen.
+     *
+     * As we go down the tree of the entities more and more transformations
+     * are combined, as opposed to the root-node case, when the only
+     * transformation is the one that is directly related to this
+     * root-node.
+     */
+    public final Transform getGlobalTransform() {
+        Entity parentEntity = getParentEntity();
+        if (parentEntity != null) {
+            if (needsAdditionalTransform()) {
+                return getLocalTransform()
+                        .combine(parentEntity.getGlobalTransform(this));
+            } else {
+                return getLocalTransform()
+                        .combine(parentEntity.getGlobalTransform());
+            }
+        } else {
+            return getLocalTransform();
+        }
+    }
+
+    /**
+     * Returns a global transform for the specific entity to handle
+     * any possible exceptional cases.
+     */
+    public final Transform getGlobalTransform(Entity childEntity) {
+        return getGlobalTransform()
+                .combine(getAdditionalTransform(childEntity));
+    }
+
+    /**
+     * It might be the case that for some exceptional entities you cannot
+     * apply a general global transform. In case there is an exceptional
+     * transform for the specified entity that should be applied after
+     * the global transform. Otherwise returns just a identity transform.
+     *
+     * Always returns an identity transform by default.
+     */
+    public Transform getAdditionalTransform(Entity childEntity) {
+        return new Transform();
+    }
+
+    /**
+     * In case this method returns {@code true} an additional transform
+     * is attempted to be applied when the
+     * {@link Entity#getGlobalTransform()} is called.
+     */
+    public boolean needsAdditionalTransform() {
+        return false;
+    }
+
+    public abstract Transform getLocalTransform();
+
     public abstract void tick();
 
     /**
@@ -48,20 +107,4 @@ public abstract class Entity {
      * returns just {@code null}.
      */
     public abstract Entity getParentEntity();
-
-    /**
-     * Returns a transformation of the 2D plane that the entity imposes.
-     * For example, if we'd have a game field entity that would've
-     * contained some game objects, the transformation of the game field
-     * entity would be the shift vector, that positions the game field
-     * on the screen.
-     *
-     * As we go down the tree of the entities more and more transformations
-     * are combined, as opposed to the root-node case, when the only
-     * transformation is the one that is directly related to this
-     * root-node.
-     */
-    public abstract Transform getGlobalTransform();
-
-    public abstract Transform getLocalTransform();
 }

@@ -110,16 +110,6 @@ public class Block extends Entity implements TileFieldObject, Animated {
     }
 
     @Override
-    public Transform getGlobalTransform() {
-        if (parentEntity != null) {
-            return getLocalTransform()
-                    .combine(parentEntity.getGlobalTransform());
-        } else {
-            return getLocalTransform();
-        }
-    }
-
-    @Override
     public Transform getLocalTransform() {
         return new Transform(refCoords);
     }

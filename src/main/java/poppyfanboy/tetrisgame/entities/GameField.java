@@ -19,6 +19,7 @@ import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.util.Rotation;
 import poppyfanboy.tetrisgame.util.Transform;
 
+import static java.lang.Math.abs;
 import static poppyfanboy.tetrisgame.util.IntVector.iVect;
 
 /**
@@ -316,16 +317,6 @@ public class GameField extends Entity implements TileField, Controllable {
     }
 
     @Override
-    public Transform getGlobalTransform() {
-        if (parentEntity != null) {
-            return parentEntity.getGlobalTransform()
-                    .combine(getLocalTransform());
-        } else {
-            return getLocalTransform();
-        }
-    }
-
-    @Override
     public Transform getLocalTransform() {
         int blockWidth = gameState.getBlockWidth();
         int width = widthInBlocks * blockWidth;
@@ -334,6 +325,47 @@ public class GameField extends Entity implements TileField, Controllable {
 
         return new Transform(coords)
             .combine(Transform.getRotation(rotationAngle, rotationPivot));
+    }
+
+    @Override
+    public Transform getAdditionalTransform(Entity entity) {
+        if (entity == activeShape) {
+            // fit the shape into the game field
+            final int blockWidth = gameState.getBlockWidth();
+            DoubleVector[] convexHull = activeShape.getConvexHull();
+
+            int width = getWidthInBlocks() * blockWidth;
+            int height = getHeightInBlocks() * blockWidth;
+            // (x1, y1) - upper left corner of the game field
+            // (x2, y2) - bottom right corner of the game field
+            double x1 = 0, y1 = 0;
+            double x2 = x1 + width, y2 = y1 + height;
+
+            // additional shifts to try to put the shape inside the game
+            // field frame
+            int fitDX = 0, fitDY = 0;
+            for (DoubleVector point : convexHull) {
+                if (point.getX() < x1
+                        && abs(x1 - point.getX()) > abs(fitDX)) {
+                    fitDX = (int) (x1 - point.getX());
+                }
+                if (point.getX() > x2
+                        && abs(x2 - point.getX()) > abs(fitDX)) {
+                    fitDX = (int) (x2 - point.getX());
+                }
+                if (point.getY() < y1
+                        && abs(y1 - point.getY()) > abs(fitDY)) {
+                    fitDY = (int) (y1 - point.getY());
+                }
+                if (point.getY() > y2
+                        && abs(y2 - point.getY()) > abs(fitDY)) {
+                    fitDY = (int) (y2 - point.getY());
+                }
+            }
+            return new Transform(new DoubleVector(fitDX, fitDY));
+        } else {
+            return new Transform();
+        }
     }
 
     @Override
