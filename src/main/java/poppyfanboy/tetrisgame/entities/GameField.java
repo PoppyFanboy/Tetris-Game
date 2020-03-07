@@ -10,6 +10,7 @@ import java.util.TreeMap;
 
 import poppyfanboy.tetrisgame.Game;
 import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
+import poppyfanboy.tetrisgame.graphics.animation.HVLinearAnimation;
 import poppyfanboy.tetrisgame.input.Controllable;
 import poppyfanboy.tetrisgame.input.InputKey;
 import poppyfanboy.tetrisgame.input.KeyState;
@@ -119,100 +120,6 @@ public class GameField extends Entity implements TileField, Controllable {
         }
         activeShape = newShape;
         return true;
-    }
-
-    /**
-     * Tries to move the active shape to the specified position.
-     *
-     * @return  {@code false} in case it fails or there is no
-     *          currently active shape.
-     */
-    private boolean moveActiveShape(IntVector newCoordinates) {
-        IntVector shiftDirection
-            = newCoordinates.subtract(activeShape.getTileCoords());
-        return shiftActiveShape(shiftDirection);
-    }
-
-    /**
-     * Drops the active shape by one block down. The difference with the
-     * {@link GameField#shiftActiveShape(IntVector)} method is that
-     * the latter is made to handle user inputs and usually the animations
-     * for those are a bit faster.
-     */
-    private boolean activeShapeDrop() {
-        if (activeShape == null) {
-            return false;
-        }
-        if (tryPut(activeShape, iVect(0, 1), this)) {
-            // activeShape.drop();
-            activeShape.tileShift(iVect(0, 1));
-            int duration = forcedDrop
-                    ? forcedDropDuration
-                    : softDropDuration;
-            activeShape.addVerticalMovementAnimation(duration);
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Tries to shift the active shape in the specified direction.
-     *
-     * @return  {@code false} in case it fails or there is no
-     *          currently active shape.
-     */
-    private boolean shiftActiveShape(IntVector shiftDirection) {
-        if (activeShape == null) {
-            return false;
-        }
-        if (tryPut(activeShape, shiftDirection, this)) {
-            activeShape.tileShift(shiftDirection);
-            return true;
-        }
-        return false;
-    }
-
-    private boolean rotateActiveShape(Rotation rotationDirection) {
-        if (rotationDirection != Rotation.RIGHT
-                && rotationDirection != Rotation.LEFT) {
-            return false;
-        }
-        if (activeShape == null) {
-            return false;
-        }
-        Rotation newRotation
-            = activeShape.getRotation().add(rotationDirection);
-        if (tryPut(activeShape, newRotation, this)) {
-            // you don't need to add a rotation animation here
-            // 'cause there is already one initialized just after
-            // the user pressed the rotation button
-            activeShape.rotate(rotationDirection);
-            return true;
-        } else {
-            IntVector[] wallKicks = rotationDirection == Rotation.RIGHT
-                ? activeShape.getRightWallKicks()
-                : activeShape.getLeftWallKicks();
-            for (IntVector shift : wallKicks) {
-                if (tryPut(activeShape, shift, newRotation, this)) {
-                    // rotate and wall kick
-                    activeShape.rotate(rotationDirection);
-                    activeShape.tileShift(shift);
-
-                    activeShape
-                        .addMovementAnimation(userControlAnimationDuration);
-                    // drop animation will be interrupted by the movement
-                    // animation
-                    // activeShape.interruptDropAnimation();
-
-                    // make the shape immediately go down
-                    /*lastDropCounter = Math.max(softDropDuration,
-                            forcedDropDuration);*/
-                    lastDropCounter = 0;
-                    return true;
-                }
-            }
-            return false;
-        }
     }
 
     /**
@@ -420,7 +327,6 @@ public class GameField extends Entity implements TileField, Controllable {
                     gameState, Rotation.INITIAL, new IntVector(0, 0),
                     this, this, TetrisShapeType.class);
             this.spawnNewActiveShape(newActiveShape);
-            // newActiveShape.setForcedDrop(forcedDrop);
 
             // the old active shape first needs to be broken into blocks
             removeFilledRows(startY, startY + 3);
@@ -428,7 +334,13 @@ public class GameField extends Entity implements TileField, Controllable {
 
         if (lastDropCounter >= softDropDuration && !forcedDrop
                 || lastDropCounter >= forcedDropDuration && forcedDrop) {
-            if (activeShapeDrop()) {
+            if (tryPut(activeShape, iVect(0, 1), this)) {
+                // activeShape.drop();
+                activeShape.tileShift(iVect(0, 1));
+                int duration = forcedDrop
+                        ? forcedDropDuration
+                        : softDropDuration;
+                activeShape.addDropAnimation(duration);
                 lastDropCounter = 0;
             } else {
                 appearanceDelayTimer
@@ -453,7 +365,13 @@ public class GameField extends Entity implements TileField, Controllable {
                                 * forcedDropDuration);
                         }
                         forcedDrop = true;
-                        // activeShape.setForcedDrop(true);
+                        HVLinearAnimation currentDropAnimation =
+                                activeShape.getDropAnimation();
+                        if (currentDropAnimation != null
+                                && !currentDropAnimation.finished()) {
+                            currentDropAnimation
+                                    .changeDuration(forcedDropDuration);
+                        }
                         break;
                     case ARROW_LEFT:
                         xShift--;
@@ -480,7 +398,13 @@ public class GameField extends Entity implements TileField, Controllable {
                                 * softDropDuration);
                         }
                         forcedDrop = false;
-                        // activeShape.setForcedDrop(false);
+                        HVLinearAnimation currentDropAnimation =
+                                activeShape.getDropAnimation();
+                        if (currentDropAnimation != null
+                                && !currentDropAnimation.finished()) {
+                            currentDropAnimation
+                                    .changeDuration(softDropDuration);
+                        }
                         break;
                 }
             }
@@ -495,15 +419,40 @@ public class GameField extends Entity implements TileField, Controllable {
                     && tryPut(activeShape, new IntVector(xShift, 0), this)) {
                 // activeShape.userControl(xShift);
                 activeShape.tileShift(iVect(xShift, 0));
-                activeShape.addHorizontalMovementAnimation(
+                activeShape.addUserControlAnimation(
                         userControlAnimationDuration);
             }
         }
-        if (!shapeFallen && (rotationDirection.equals(Rotation.LEFT)
+        if (activeShape != null && !shapeFallen
+                && (rotationDirection.equals(Rotation.LEFT)
                 || rotationDirection.equals(Rotation.RIGHT))) {
-            rotateActiveShape(rotationDirection);
-            activeShape.addRotationAnimation(
-                    rotationDirection, userControlAnimationDuration);
+            Rotation newRotation
+                    = activeShape.getRotation().add(rotationDirection);
+            if (tryPut(activeShape, newRotation, this)) {
+                activeShape.rotate(rotationDirection);
+                activeShape.addRotationAnimation(
+                        rotationDirection, userControlAnimationDuration);
+            } else {
+                IntVector[] wallKicks = rotationDirection == Rotation.RIGHT
+                        ? activeShape.getRightWallKicks()
+                        : activeShape.getLeftWallKicks();
+                for (IntVector shift : wallKicks) {
+                    if (tryPut(activeShape, shift, newRotation, this)) {
+                        // rotate and wall kick
+                        activeShape.rotate(rotationDirection);
+                        activeShape.tileShift(shift);
+
+                        activeShape.addMovementAnimation(
+                                userControlAnimationDuration);
+                        activeShape.addRotationAnimation(rotationDirection,
+                                userControlAnimationDuration);
+                        // change it to drop animation waiting right
+                        // until the wall kick animation finishes
+                        lastDropCounter = 0;
+                        break;
+                    }
+                }
+            }
         }
     }
 

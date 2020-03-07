@@ -53,10 +53,6 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     private RotateAnimation rotateAnimation;
     private MoveAnimation moveAnimation;
 
-    // the shape will drop slightly faster when the player is holding
-    // the down key
-    // private boolean isForcedToDrop = false;
-
     /**
      * @param   blockColors colors of the solid blocks of the shape.
      *          They are specified in a row-major order in terms of
@@ -199,14 +195,18 @@ public class Shape extends Entity implements TileFieldObject, Animated {
      * Moves the shape down so that its Y tile coordinate would match
      * the actual Y coordinate on the screen.
      */
-    public void addVerticalMovementAnimation(int duration) {
+    public void addDropAnimation(int duration) {
         final int blockWidth = gameState.getBlockWidth();
         dropAnimation = HVLinearAnimation.getVerticalAnimation(
                 coords.getY(), tileCoords.getY() * blockWidth,
                 duration, blockWidth);
     }
 
-    public void addHorizontalMovementAnimation(int duration) {
+    public HVLinearAnimation getDropAnimation() {
+        return dropAnimation;
+    }
+
+    public void addUserControlAnimation(int duration) {
         final int blockWidth = gameState.getBlockWidth();
         userControlAnimation = HVLinearAnimation.getHorizontalAnimation(
                 coords.getX(), tileCoords.getX() * blockWidth,
