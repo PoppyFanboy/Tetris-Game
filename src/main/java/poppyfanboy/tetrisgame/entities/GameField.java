@@ -109,9 +109,11 @@ public class GameField extends Entity implements TileField, Controllable {
      * of the blocks on the field or it is out of the field bounds.
      */
     private boolean spawnNewActiveShape(Shape newShape) {
-        if (!tryPut(newShape, this)) {
+        if (!Shape.fits(newShape, newShape.getShapeType(),
+                newShape.getTileCoords(), newShape.getRotation(), this)) {
             return false;
         }
+
         // glue the previously active shape to the field
         if (activeShape != null) {
             for (Block block : activeShape.getBlocks(this)) {
@@ -334,8 +336,9 @@ public class GameField extends Entity implements TileField, Controllable {
 
         if (lastDropCounter >= softDropDuration && !forcedDrop
                 || lastDropCounter >= forcedDropDuration && forcedDrop) {
-            if (tryPut(activeShape, iVect(0, 1), this)) {
-                // activeShape.drop();
+            if (Shape.fits(activeShape, activeShape.getShapeType(),
+                    activeShape.getTileCoords().add(iVect(0, 1)),
+                    activeShape.getRotation(), this)) {
                 activeShape.tileShift(iVect(0, 1));
                 int duration = forcedDrop
                         ? forcedDropDuration
@@ -415,9 +418,10 @@ public class GameField extends Entity implements TileField, Controllable {
         // one has not yet spawned, would change the initial position
         // of a newly spawned shape
         if (xShift != 0 && !shapeFallen) {
-            if (activeShape != null
-                    && tryPut(activeShape, new IntVector(xShift, 0), this)) {
-                // activeShape.userControl(xShift);
+            if (activeShape != null && Shape.fits(activeShape,
+                    activeShape.getShapeType(),
+                    activeShape.getTileCoords().add(iVect(xShift, 0)),
+                    activeShape.getRotation(), this)) {
                 activeShape.tileShift(iVect(xShift, 0));
                 activeShape.addUserControlAnimation(
                         userControlAnimationDuration);
@@ -428,7 +432,8 @@ public class GameField extends Entity implements TileField, Controllable {
                 || rotationDirection.equals(Rotation.RIGHT))) {
             Rotation newRotation
                     = activeShape.getRotation().add(rotationDirection);
-            if (tryPut(activeShape, newRotation, this)) {
+            if (Shape.fits(activeShape, activeShape.getShapeType(),
+                    activeShape.getTileCoords(), newRotation, this)) {
                 activeShape.rotate(rotationDirection);
                 activeShape.addRotationAnimation(
                         rotationDirection, userControlAnimationDuration);
@@ -437,7 +442,9 @@ public class GameField extends Entity implements TileField, Controllable {
                         ? activeShape.getRightWallKicks()
                         : activeShape.getLeftWallKicks();
                 for (IntVector shift : wallKicks) {
-                    if (tryPut(activeShape, shift, newRotation, this)) {
+                    if (Shape.fits(activeShape, activeShape.getShapeType(),
+                            activeShape.getTileCoords().add(shift),
+                            newRotation, this)) {
                         // rotate and wall kick
                         activeShape.rotate(rotationDirection);
                         activeShape.tileShift(shift);
@@ -446,51 +453,13 @@ public class GameField extends Entity implements TileField, Controllable {
                                 userControlAnimationDuration);
                         activeShape.addRotationAnimation(rotationDirection,
                                 userControlAnimationDuration);
-                        // change it to drop animation waiting right
-                        // until the wall kick animation finishes
-                        lastDropCounter = 0;
+                        // wait until the wall kick animation finishes
+                        lastDropCounter
+                            = activeShape.getTimeTillAnimationFinishes();
                         break;
                     }
                 }
             }
         }
-    }
-
-    // shifts the shape, puts it into the specified rotation and tries
-    // to insert it into this new position without actually mutating
-    // the entity itself
-    private static boolean tryPut(Shape shape, IntVector shiftDirection,
-                                  Rotation rotation, GameField field) {
-        // check for out of bounds indices
-        if (!shape.shiftedBoundsCheck(shiftDirection, rotation,
-                field.widthInBlocks, field.heightInBlocks)) {
-            return false;
-        }
-        // check for collisions
-        for (Block block : field.fallenBlocks.values()) {
-            if (shape.checkShiftedCollision(block.getTileCoords(),
-                    shiftDirection, rotation)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    // does not rotate the shape
-    private static boolean tryPut(Shape shape, IntVector shiftDirection,
-                                  GameField field) {
-        return tryPut(shape, shiftDirection, shape.getRotation(), field);
-    }
-
-    // does not shift the shape
-    private static boolean tryPut(Shape shape, Rotation rotation,
-                                  GameField field) {
-        return tryPut(shape, new IntVector(0, 0), rotation, field);
-    }
-
-    // tries to put the shape as it is
-    private static boolean tryPut(Shape shape, GameField field) {
-        return
-                tryPut(shape, new IntVector(0, 0), shape.getRotation(), field);
     }
 }

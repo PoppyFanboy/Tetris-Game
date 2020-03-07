@@ -15,7 +15,6 @@ import poppyfanboy.tetrisgame.graphics.animation.RotateAnimation;
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.util.DoubleVector;
-import static poppyfanboy.tetrisgame.util.IntVector.iVect;
 import poppyfanboy.tetrisgame.util.Rotation;
 import poppyfanboy.tetrisgame.util.Transform;
 import poppyfanboy.tetrisgame.util.Util;
@@ -166,29 +165,8 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         return rotation;
     }
 
-    /**
-     * Shifts the shape in the specified direction, puts it into the
-     * specified rotation and checks, if it fits into the game field with
-     * the specified width and height.
-     * (Does not mutate the shape instance itself.)
-     */
-    public boolean shiftedBoundsCheck(IntVector shiftDirection,
-            Rotation rotation, int fieldWidth, int fieldHeight) {
-        final int frameSize = shapeType.getFrameSize();
-        for (int x = 0; x < frameSize; x++) {
-            for (int y = 0; y < frameSize; y++) {
-                if (shapeType.isSolid(x, y, rotation)) {
-                    IntVector shiftedTile
-                        = tileCoords.add(shiftDirection).add(x, y);
-                    if (shiftedTile.getY() < 0 || shiftedTile.getX() < 0
-                            || shiftedTile.getY() >= fieldHeight
-                            || shiftedTile.getX() >= fieldWidth) {
-                        return false;
-                    }
-                }
-            }
-        }
-        return true;
+    public ShapeType getShapeType() {
+        return shapeType;
     }
 
     /**
@@ -284,27 +262,6 @@ public class Shape extends Entity implements TileFieldObject, Animated {
 
         if (x >= 0 && y >= 0 && x < frameSize && y < frameSize) {
             return shapeType.isSolid(x, y, rotation);
-        }
-        return false;
-    }
-
-    /**
-     * Shifts the shape (without mutating the shape instance itself),
-     * puts it into the specified rotation and checks, if it collides
-     * with the specified (row, col) point.
-     */
-    public boolean checkShiftedCollision(IntVector collisionTile,
-            IntVector shapeShift, Rotation shapeRotation) {
-        final int frameSize = shapeType.getFrameSize();
-        // coordinates of the collision relatively to the tile coordinates
-        // of this shape
-        final IntVector relativeCollisionTile
-            = collisionTile.subtract(tileCoords.add(shapeShift));
-        final int x = relativeCollisionTile.getX();
-        final int y = relativeCollisionTile.getY();
-
-        if (x >= 0 && y >= 0 && x < frameSize && y < frameSize) {
-            return shapeType.isSolid(x, y, shapeRotation);
         }
         return false;
     }
@@ -466,5 +423,53 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         }
         return new Shape(gameState, randomType, rotation, tileCoords,
                 randomColors, gameField, parentEntity);
+    }
+
+    /**
+     * Checks, if the shape with the specified parameters fits into
+     * the specified tile field.
+     * @param   excludedObject this object is excluded when checking for
+     *          collisions with other tile field objects. Set this
+     *          argument to {@code null} if no object needs to be
+     *          excluded.
+     */
+    public static boolean fits(Shape excludedObject, ShapeType shapeType,
+            IntVector tileCoords, Rotation rotation, TileField tileField) {
+        final int frameSize = shapeType.getFrameSize();
+        // (x1, y1) - upper-left boundary (x2, y2) - bottom-right boundary
+        // (x1, y1) is included into the boundary, (x2, y2) is excluded
+        final int x1 = tileField.getStartingIndex().getX();
+        final int y1 = tileField.getStartingIndex().getY();
+        final int x2 = x1 + tileField.getWidthInBlocks();
+        final int y2 = y1 + tileField.getHeightInBlocks();
+
+        for (int x = 0; x < frameSize; x++) {
+            for (int y = 0; y < frameSize; y++) {
+                if (shapeType.isSolid(x, y, rotation)) {
+                    IntVector blockCoords = tileCoords.add(x, y);
+                    // check, if the object fits into the game field
+                    // boundaries
+                    if (blockCoords.getX() < x1 || blockCoords.getY() < y1
+                            || blockCoords.getX() >= x2
+                            || blockCoords.getY() >= y2) {
+                        return false;
+                    }
+                    // check, if it interferes with any other objects
+                    // on the field
+                    for (TileFieldObject object : tileField.getObjects()) {
+                        if (object != excludedObject
+                                && object.checkCollision(blockCoords)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    public static boolean fits(ShapeType shapeType, IntVector tileCoords,
+            Rotation rotation, TileField tileField) {
+        return fits(null, shapeType, tileCoords, rotation, tileField);
     }
 }
