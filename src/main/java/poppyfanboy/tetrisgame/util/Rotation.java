@@ -30,6 +30,19 @@ public enum Rotation {
         return values()[(this.ordinal() + rotation.ordinal()) % 4];
     }
 
+    public Rotation inverse() {
+        switch (this) {
+            case RIGHT:
+                return LEFT;
+            case LEFT:
+                return RIGHT;
+            case UPSIDE_DOWN:
+                return UPSIDE_DOWN;
+            default:
+                return INITIAL;
+        }
+    }
+
     /**
      * Returns a radian angle between the initial rotation and this
      * rotation (from the first rotation to the second). The returned

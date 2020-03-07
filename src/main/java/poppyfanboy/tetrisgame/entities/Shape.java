@@ -55,7 +55,7 @@ public class Shape extends Entity implements TileFieldObject, Animated {
 
     // the shape will drop slightly faster when the player is holding
     // the down key
-    private boolean isForcedToDrop = false;
+    // private boolean isForcedToDrop = false;
 
     /**
      * @param   blockColors colors of the solid blocks of the shape.
@@ -132,10 +132,14 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         Block[] blocksCopy = new Block[blocks.length];
         final int blockWidth = gameState.getBlockWidth();
         for (int i = 0; i < blocksCopy.length; i++) {
-            blocksCopy[i] = new Block(blocks[i], gameField, blocks[i].getTileCoords().times(blockWidth).toDouble());
+            DoubleVector newRefCoords
+                    = blocks[i].getTileCoords().times(blockWidth)
+                    .toDouble();
+            blocksCopy[i] = new Block(blocks[i], gameField, newRefCoords);
         }
         return blocksCopy;
     }
+
 
     public void rotate(Rotation rotationDirection) {
         if (rotationDirection != Rotation.RIGHT
@@ -144,53 +148,10 @@ public class Shape extends Entity implements TileFieldObject, Animated {
                 "Rotation direction is expected to be either left or"
                 + " right. Got: %s", rotationDirection));
         }
-        boolean isClockwise = rotationDirection == Rotation.RIGHT;
-        double newRotationAngle;
-
-        if (rotateAnimation == null) {
-            rotationAngle = rotation.getAngle();
-            newRotationAngle = rotationAngle
-                    + (isClockwise ? Math.PI / 2 : -Math.PI / 2);
-        } else {
-            if (rotateAnimation.isClockwise() != isClockwise) {
-                double angleShift = Rotation.normalizeAngle(
-                        rotation.add(rotationDirection).getAngle()
-                                - rotationAngle);
-                if (!isClockwise && angleShift > 0) {
-                    angleShift -= 2 * Math.PI;
-                }
-                if (isClockwise && angleShift < 0) {
-                    angleShift += 2 * Math.PI;
-                }
-                newRotationAngle = rotationAngle + angleShift;
-            } else {
-                newRotationAngle
-                        = rotateAnimation.getEndAngle()
-                        + (isClockwise ? Math.PI / 2 : -Math.PI / 2);
-            }
-        }
-        rotateAnimation = new RotateAnimation(rotationAngle,
-            newRotationAngle, gameField.getRotateAnimationDuration(),
-            Math.PI / 2, isClockwise);
-
         for (Block block : blocks) {
             block.rotate(rotationDirection);
         }
         this.rotation = rotation.add(rotationDirection);
-    }
-
-    /**
-     * Counter-clockwise rotation.
-     */
-    public void rotateLeft() {
-        rotate(Rotation.LEFT);
-    }
-
-    /**
-     * Clockwise rotation.
-     */
-    public void rotateRight() {
-        rotate(Rotation.RIGHT);
     }
 
     /**
@@ -234,49 +195,67 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         return true;
     }
 
-    public void drop() {
-        tileCoords = tileCoords.add(0, 1);
-        for (Block block : blocks) {
-            block.tileShift(iVect(0, 1));
-        }
+    /**
+     * Moves the shape down so that its Y tile coordinate would match
+     * the actual Y coordinate on the screen.
+     */
+    public void addVerticalMovementAnimation(int duration) {
         final int blockWidth = gameState.getBlockWidth();
-        int animationDuration = isForcedToDrop
-                ? gameField.getForcedDropAnimationDuration()
-                : gameField.getSoftDropAnimationDuration();
         dropAnimation = HVLinearAnimation.getVerticalAnimation(
                 coords.getY(), tileCoords.getY() * blockWidth,
-                animationDuration, blockWidth);
+                duration, blockWidth);
     }
 
-    public void userControl(int dx) {
-        IntVector shift = new IntVector(dx, 0);
-        tileCoords = tileCoords.add(shift);
-        for (Block block : blocks) {
-            block.tileShift(shift);
-        }
+    public void addHorizontalMovementAnimation(int duration) {
         final int blockWidth = gameState.getBlockWidth();
         userControlAnimation = HVLinearAnimation.getHorizontalAnimation(
                 coords.getX(), tileCoords.getX() * blockWidth,
-                gameField.getUserControlAnimationDuration(), blockWidth);
+                duration, blockWidth);
     }
 
-    public void setForcedDrop(boolean option) {
-        if (option != isForcedToDrop) {
-            if (dropAnimation != null) {
-                if (option) {
-                    dropAnimation.changeDuration(
-                            gameField.getForcedDropAnimationDuration());
-                } else {
-                    dropAnimation.changeDuration(
-                            gameField.getSoftDropAnimationDuration());
+    public void addRotationAnimation(Rotation rotationDirection,
+            int duration) {
+        Rotation oldRotation
+                = this.rotation.add(rotationDirection.inverse());
+
+        boolean isClockwise = rotationDirection == Rotation.RIGHT;
+        double newRotationAngle;
+
+        if (rotateAnimation == null) {
+            rotationAngle = oldRotation.getAngle();
+            newRotationAngle = rotationAngle
+                    + (isClockwise ? Math.PI / 2 : -Math.PI / 2);
+        } else {
+            if (rotateAnimation.isClockwise() != isClockwise) {
+                double angleShift = Rotation.normalizeAngle(
+                        oldRotation.add(rotationDirection).getAngle()
+                                - rotationAngle);
+                if (!isClockwise && angleShift > 0) {
+                    angleShift -= 2 * Math.PI;
                 }
+                if (isClockwise && angleShift < 0) {
+                    angleShift += 2 * Math.PI;
+                }
+                newRotationAngle = rotationAngle + angleShift;
+            } else {
+                newRotationAngle
+                        = rotateAnimation.getEndAngle()
+                        + (isClockwise ? Math.PI / 2 : -Math.PI / 2);
             }
-            isForcedToDrop = option;
         }
+        rotateAnimation = new RotateAnimation(rotationAngle,
+                newRotationAngle, duration, Math.PI / 2, isClockwise);
     }
 
-    public void interruptDropAnimation() {
+    public void addMovementAnimation(int duration) {
+        // interrupt any running HV movement animations
         dropAnimation = null;
+        userControlAnimation = null;
+
+        final int blockWidth = gameState.getBlockWidth();
+        moveAnimation = new MoveAnimation(coords,
+                tileCoords.times(blockWidth).toDouble(), duration,
+                blockWidth);
     }
 
     @Override
@@ -291,10 +270,6 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         for (Block block : blocks) {
             block.tileShift(shift);
         }
-        final int blockWidth = gameState.getBlockWidth();
-        moveAnimation = new MoveAnimation(
-                coords, tileCoords.times(blockWidth).toDouble(),
-                gameField.getUserControlAnimationDuration(), blockWidth);
     }
 
     @Override

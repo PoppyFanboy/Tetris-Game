@@ -61,6 +61,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
     private int softDropDuration = Game.TICKS_PER_SECOND / 4;
     private int forcedDropDuration = Game.TICKS_PER_SECOND / 16;
+    private int userControlAnimationDuration = softDropDuration / 4;
 
     private boolean forcedDrop = false;
 
@@ -97,22 +98,6 @@ public class GameField extends Entity implements TileField, Controllable {
                 gameState, Rotation.INITIAL, new IntVector(0, 0), this,
                 this, TetrisShapeType.class);
         spawnNewActiveShape(activeShape);
-    }
-
-    public int getRotateAnimationDuration() {
-        return softDropDuration / 4;
-    }
-
-    public int getForcedDropAnimationDuration() {
-        return forcedDropDuration;
-    }
-
-    public int getSoftDropAnimationDuration() {
-        return softDropDuration;
-    }
-
-    public int getUserControlAnimationDuration() {
-        return softDropDuration / 4;
     }
 
     /**
@@ -159,7 +144,12 @@ public class GameField extends Entity implements TileField, Controllable {
             return false;
         }
         if (tryPut(activeShape, iVect(0, 1), this)) {
-            activeShape.drop();
+            // activeShape.drop();
+            activeShape.tileShift(iVect(0, 1));
+            int duration = forcedDrop
+                    ? forcedDropDuration
+                    : softDropDuration;
+            activeShape.addVerticalMovementAnimation(duration);
             return true;
         }
         return false;
@@ -193,6 +183,9 @@ public class GameField extends Entity implements TileField, Controllable {
         Rotation newRotation
             = activeShape.getRotation().add(rotationDirection);
         if (tryPut(activeShape, newRotation, this)) {
+            // you don't need to add a rotation animation here
+            // 'cause there is already one initialized just after
+            // the user pressed the rotation button
             activeShape.rotate(rotationDirection);
             return true;
         } else {
@@ -204,8 +197,17 @@ public class GameField extends Entity implements TileField, Controllable {
                     // rotate and wall kick
                     activeShape.rotate(rotationDirection);
                     activeShape.tileShift(shift);
-                    activeShape.interruptDropAnimation();
-                    lastDropCounter = Math.max(softDropDuration, forcedDropDuration);
+
+                    activeShape
+                        .addMovementAnimation(userControlAnimationDuration);
+                    // drop animation will be interrupted by the movement
+                    // animation
+                    // activeShape.interruptDropAnimation();
+
+                    // make the shape immediately go down
+                    /*lastDropCounter = Math.max(softDropDuration,
+                            forcedDropDuration);*/
+                    lastDropCounter = 0;
                     return true;
                 }
             }
@@ -418,7 +420,7 @@ public class GameField extends Entity implements TileField, Controllable {
                     gameState, Rotation.INITIAL, new IntVector(0, 0),
                     this, this, TetrisShapeType.class);
             this.spawnNewActiveShape(newActiveShape);
-            newActiveShape.setForcedDrop(forcedDrop);
+            // newActiveShape.setForcedDrop(forcedDrop);
 
             // the old active shape first needs to be broken into blocks
             removeFilledRows(startY, startY + 3);
@@ -451,7 +453,7 @@ public class GameField extends Entity implements TileField, Controllable {
                                 * forcedDropDuration);
                         }
                         forcedDrop = true;
-                        activeShape.setForcedDrop(true);
+                        // activeShape.setForcedDrop(true);
                         break;
                     case ARROW_LEFT:
                         xShift--;
@@ -478,7 +480,7 @@ public class GameField extends Entity implements TileField, Controllable {
                                 * softDropDuration);
                         }
                         forcedDrop = false;
-                        activeShape.setForcedDrop(false);
+                        // activeShape.setForcedDrop(false);
                         break;
                 }
             }
@@ -491,12 +493,17 @@ public class GameField extends Entity implements TileField, Controllable {
         if (xShift != 0 && !shapeFallen) {
             if (activeShape != null
                     && tryPut(activeShape, new IntVector(xShift, 0), this)) {
-                activeShape.userControl(xShift);
+                // activeShape.userControl(xShift);
+                activeShape.tileShift(iVect(xShift, 0));
+                activeShape.addHorizontalMovementAnimation(
+                        userControlAnimationDuration);
             }
         }
         if (!shapeFallen && (rotationDirection.equals(Rotation.LEFT)
                 || rotationDirection.equals(Rotation.RIGHT))) {
             rotateActiveShape(rotationDirection);
+            activeShape.addRotationAnimation(
+                    rotationDirection, userControlAnimationDuration);
         }
     }
 
