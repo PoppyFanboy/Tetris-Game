@@ -5,5 +5,6 @@ public interface Animation {
     void perform(Animated object, double interpolation);
     void perform(Animated object);
     boolean finished();
+    void finish(Animated object);
     int timeLeft();
 }

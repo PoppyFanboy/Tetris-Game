@@ -64,4 +64,10 @@ public class RotateAnimation implements Animation {
     public int timeLeft() {
         return Math.max(0, duration - currentDuration);
     }
+
+    @Override
+    public void finish(Animated object) {
+        currentDuration = duration;
+        perform(object);
+    }
 }

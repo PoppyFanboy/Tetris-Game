@@ -15,7 +15,20 @@ import poppyfanboy.tetrisgame.util.DoubleVector;
 public interface Animated {
     void setCoords(DoubleVector newCoords);
     DoubleVector getCoords();
+
     void setRotationAngle(double newRotationAngle);
+
+    /**
+     * @throws  IllegalArgumentException in case {@code newScale} argument
+     *          is negative.
+     */
+    void setScale(double newScale);
+
+    /**
+     * @throws  IllegalArgumentException in case {@code newOpacity}
+     *          argument does not lie within the {@code [0, 1]} interval.
+     */
+    void setOpacity(double newOpacity);
 
     /**
      * In case there are any animations applied to the object, returns

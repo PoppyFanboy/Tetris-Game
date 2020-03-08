@@ -30,6 +30,9 @@ public class Block extends Entity implements TileFieldObject, Animated {
 
     private Entity parentEntity;
     private DoubleVector coords;
+    private double rotationAngle = 0;
+    private double scale = 1.0;
+    private double opacity = 1.0;
 
     private AcceleratedMoveAnimation dropAnimation;
 
@@ -98,7 +101,12 @@ public class Block extends Entity implements TileFieldObject, Animated {
 
     @Override
     public Transform getLocalTransform() {
-        return new Transform(coords);
+        final int blockWidth = gameState.getBlockWidth();
+        DoubleVector rotationPivot = coords.add(
+                new DoubleVector(blockWidth / 2.0, blockWidth / 2.0));
+
+        return new Transform(coords)
+            .combine(Transform.getRotation(rotationAngle, rotationPivot));
     }
 
     @Override
@@ -106,8 +114,9 @@ public class Block extends Entity implements TileFieldObject, Animated {
         if (dropAnimation != null && !dropAnimation.finished()) {
             dropAnimation.perform(this, interpolation);
         }
+        final int blockWidth = gameState.getBlockWidth();
         // draw blocks as they are on the tile field
-        /*final int blockWidth = gameState.getBlockWidth();
+        /*
         g.setColor(BlockColor.BLUE.getColor());
         g.setStroke(new BasicStroke(2));
         g.fillRect(tileCoords.getX() * blockWidth + 20,
@@ -118,6 +127,8 @@ public class Block extends Entity implements TileFieldObject, Animated {
                 = getGlobalTransform().getRotation().getAngle();
 
         AffineTransform oldTransform = g.getTransform();
+        Composite oldComposite = g.getComposite();
+
         Transform globalTransform = getGlobalTransform();
         AffineTransform transform = new AffineTransform(
             globalTransform.matrix(0, 0), globalTransform.matrix(1, 0),
@@ -134,15 +145,35 @@ public class Block extends Entity implements TileFieldObject, Animated {
         double progress = (n * (Rotation.normalizeAngle(rotationAngle)
                 + Math.PI) / (2 * Math.PI)) % 1;
 
-        g.drawImage(progress < 0.5 ? left : right,
-                0, 0, null);
+        g.setComposite(AlphaComposite
+                .getInstance(AlphaComposite.SRC_OVER, (float) opacity));
+        if (scale == 1.0) {
+            g.drawImage(progress < 0.5 ? left : right,
+                    0, 0, null);
+        } else {
+            g.drawImage(progress < 0.5 ? left : right,
+                    (int) (blockWidth * (1 - scale) / 2),
+                    (int) (blockWidth * (1 - scale) / 2),
+                    (int) (blockWidth * scale),
+                    (int) (blockWidth * scale), null);
+        }
 
-        float alpha = (float) (progress < 0.5 ? progress : 1 - progress);
-        Composite oldComposite = g.getComposite();
+        float alpha = (float) (
+                (progress < 0.5 ? progress : 1 - progress)
+                * opacity);
+
         g.setComposite(AlphaComposite
                 .getInstance(AlphaComposite.SRC_OVER, alpha));
-        g.drawImage(progress < 0.5 ? right : left,
-                0, 0, null);
+        if (scale == 1.0) {
+            g.drawImage(progress < 0.5 ? right : left,
+                    0, 0, null);
+        } else {
+            g.drawImage(progress < 0.5 ? right : left,
+                    (int) (blockWidth * (1 - scale) / 2),
+                    (int) (blockWidth * (1 - scale) / 2),
+                    (int) (blockWidth * scale),
+                    (int) (blockWidth * scale), null);
+        }
 
         g.setComposite(oldComposite);
         g.setTransform(oldTransform);
@@ -190,11 +221,32 @@ public class Block extends Entity implements TileFieldObject, Animated {
 
     @Override
     public void setRotationAngle(double newRotationAngle) {
-        // do nothing
+        rotationAngle = newRotationAngle;
+    }
+
+    @Override
+    public void setOpacity(double newOpacity) {
+        if (newOpacity < 0 || newOpacity > 1.0) {
+            throw new IllegalArgumentException(String.format(
+                    "The value of the opacity must lie within the"
+                            + " [0, 1] interval. Got: newOpacity = %f.",
+                    newOpacity));
+        }
+        opacity = newOpacity;
+    }
+
+    @Override
+    public void setScale(double newScale) {
+        if (newScale < 0) {
+            throw new IllegalArgumentException(String.format(
+                    "The scale value must be non-negative."
+                            + " Got: newScale = %f.", newScale));
+        }
+        scale = newScale;
     }
 
     @Override
     public int getTimeTillAnimationFinishes() {
-        return 0;
+        return dropAnimation == null ? 0 : dropAnimation.timeLeft();
     }
 }

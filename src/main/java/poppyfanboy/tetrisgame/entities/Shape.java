@@ -40,6 +40,8 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     private double rotationAngle;
     private DoubleVector coords;
     private Entity parentEntity;
+    private double opacity = 1.0;
+    private double scale = 1.0;
 
 
     // each new animation cancels the previous one (the exception is
@@ -288,6 +290,8 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         }
 
         for (Block block : blocks) {
+            block.setOpacity(opacity);
+            block.setScale(scale);
             block.render(g, interpolation);
         }
         // render convex hull
@@ -341,6 +345,27 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     @Override
     public void setRotationAngle(double newRotationAngle) {
         rotationAngle = newRotationAngle;
+    }
+
+    @Override
+    public void setOpacity(double newOpacity) {
+        if (newOpacity < 0 || newOpacity > 1.0) {
+            throw new IllegalArgumentException(String.format(
+                    "The value of the opacity must lie within the"
+                     + " [0, 1] interval. Got: newOpacity = %f.",
+                     newOpacity));
+        }
+        opacity = newOpacity;
+    }
+
+    @Override
+    public void setScale(double newScale) {
+        if (newScale < 0) {
+            throw new IllegalArgumentException(String.format(
+                    "The scale value must be non-negative."
+                    + " Got: newScale = %f.", newScale));
+        }
+        scale = newScale;
     }
 
     @Override

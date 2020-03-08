@@ -29,6 +29,12 @@ public class HVLinearAnimation implements Animation {
         currentDuration = 0;
     }
 
+    public void changeDuration(int newDuration) {
+        currentDuration = (int) Math.round(
+                (1.0 * currentDuration / duration) * newDuration);
+        duration = newDuration;
+    }
+
     @Override
     public void tick() {
         if (!finished()) {
@@ -66,10 +72,10 @@ public class HVLinearAnimation implements Animation {
         return Math.max(0, duration - currentDuration);
     }
 
-    public void changeDuration(int newDuration) {
-        currentDuration = (int) Math.round(
-                (1.0 * currentDuration / duration) * newDuration);
-        duration = newDuration;
+    @Override
+    public void finish(Animated object) {
+        currentDuration = duration;
+        perform(object);
     }
 
     public static HVLinearAnimation getHorizontalAnimation(

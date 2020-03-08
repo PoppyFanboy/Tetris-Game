@@ -20,10 +20,12 @@ import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.util.Rotation;
 import poppyfanboy.tetrisgame.util.Transform;
+import poppyfanboy.tetrisgame.util.Util;
 
 import static java.lang.Math.abs;
+import static poppyfanboy.tetrisgame.entities.GameField.ActiveShapeState.*;
+import static poppyfanboy.tetrisgame.entities.GameField.GameFieldState.*;
 import static poppyfanboy.tetrisgame.util.IntVector.iVect;
-import poppyfanboy.tetrisgame.util.Util;
 
 /**
  * A game field entity. Wraps several block entities and a single shape
@@ -35,6 +37,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
     // the game state to which this game field belongs
     private GameState gameState;
+    private EnumMap<InputKey, KeyState> lastInputs;
 
     // do something with the possible null pointer exception errors
     private Shape activeShape;
@@ -58,16 +61,12 @@ public class GameField extends Entity implements TileField, Controllable {
     // how many ticks past since last active shape drop
     private int lastDropCounter = 0;
 
-    // how much time left until the next shape should be spawned
-    // after the previous one completely fell
-    private int appearanceDelayTimer = -1;
-    private boolean shapeFallen = false;
-
     private int softDropDuration = Game.TICKS_PER_SECOND / 4;
     private int forcedDropDuration = Game.TICKS_PER_SECOND / 16;
-    private int userControlAnimationDuration = softDropDuration / 4;
+    private int userControlAnimationDuration = softDropDuration;
 
-    private boolean forcedDrop = false;
+    private ActiveShapeState activeShapeState = NOT_SPAWNED;
+    private GameFieldState gameFieldState = STOPPED;
 
     /**
      * Creates an empty instance of a game field.
@@ -98,6 +97,9 @@ public class GameField extends Entity implements TileField, Controllable {
     }
 
     public void start() {
+        gameFieldState = SHAPE_FALLING;
+        activeShapeState = SOFT_DROPPING;
+
         ShapeType randomType
                 = Util.getRandomInstance(random, TetrisShapeType.class);
         BlockColor randomColor
@@ -120,15 +122,8 @@ public class GameField extends Entity implements TileField, Controllable {
         if (!Shape.fits(shapeType, tileCoords, rotation, this)) {
             return false;
         }
-        Shape newShape = new Shape(gameState, shapeType, rotation,
+        activeShape = new Shape(gameState, shapeType, rotation,
                 tileCoords, blockColors, this);
-        // break the previously active shape into separate blocks
-        if (activeShape != null) {
-            for (Block block : activeShape.getBlocks(this)) {
-               fallenBlocks.put(block.getTileCoords(), block);
-            }
-        }
-        activeShape = newShape;
         return true;
     }
 
@@ -185,11 +180,20 @@ public class GameField extends Entity implements TileField, Controllable {
                     new IntVector(width - 1, bottomLine), false).values();
 
             int removedLinesLeft = clearedLinesIndices.size();
+            final int removedLinesCount = clearedLinesIndices.size();
             ArrayList<IntVector> oldKeys = new ArrayList<>();
             for (Block block : blocksFallingDown) {
+                // skip through the cleared lines to the one that is right
+                // under the current block
                 while (block.getTileCoords().getY()
-                        > clearedLinesIndices.get(removedLinesLeft - 1)) {
+                        > clearedLinesIndices.get(removedLinesCount - removedLinesLeft)) {
                     removedLinesLeft--;
+                    if (removedLinesLeft == 0) {
+                        break;
+                    }
+                }
+                if (removedLinesLeft == 0) {
+                    break;
                 }
                 oldKeys.add(block.getTileCoords());
                 block.tileShift(iVect(0, removedLinesLeft));
@@ -318,49 +322,82 @@ public class GameField extends Entity implements TileField, Controllable {
         for (Block block : fallenBlocks.values()) {
             block.tick();
         }
-        lastDropCounter++;
 
-        if (shapeFallen && appearanceDelayTimer > 0) {
-            appearanceDelayTimer--;
+        if (gameFieldState == DROPPING_BLOCKS) {
+            boolean animationsFinished = true;
+            for (Block block : fallenBlocks.values()) {
+                if (block.getTimeTillAnimationFinishes() > 0) {
+                    animationsFinished = false;
+                    break;
+                }
+            }
+            if (animationsFinished) {
+                gameFieldState = READY_TO_SPAWN_NEW_SHAPE;
+            }
         }
-        if (appearanceDelayTimer == 0) {
-            appearanceDelayTimer = -1;
-            shapeFallen = false;
+        if (!activeShapeState.fell()) {
+            lastDropCounter++;
+        }
 
+        if (lastDropCounter >= softDropDuration
+                && activeShapeState == SOFT_DROPPING
+                || lastDropCounter >= forcedDropDuration
+                && activeShapeState == FORCED_DROPPING) {
+            if (Shape.fits(activeShape, activeShape.getShapeType(),
+                    activeShape.getTileCoords().add(iVect(0, 1)),
+                    activeShape.getRotation(), this)) {
+                activeShape.tileShift(iVect(0, 1));
+                int duration = activeShapeState == FORCED_DROPPING
+                        ? forcedDropDuration
+                        : softDropDuration;
+                activeShape.addDropAnimation(duration);
+                lastDropCounter = 0;
+            } else {
+                activeShapeState = FELL;
+            }
+        }
+
+        if (activeShapeState == FELL
+                && activeShape.getTimeTillAnimationFinishes() == 0) {
             final int startY = activeShape.getTileCoords().getY();
+            // lock the active shape
+            for (Block block : activeShape.getBlocks(this)) {
+                fallenBlocks.put(block.getTileCoords(), block);
+            }
+            activeShape = null;
+            activeShapeState = LOCKED;
+
+
+            removeFilledRows(startY, startY + 3);
+            gameFieldState = DROPPING_BLOCKS;
+        }
+
+        if (gameFieldState == READY_TO_SPAWN_NEW_SHAPE) {
+            activeShapeState = SOFT_DROPPING;
+            if (lastInputs != null) {
+                KeyState downKeyState = lastInputs.get(InputKey.ARROW_DOWN);
+                if (downKeyState == KeyState.HELD
+                        || downKeyState == KeyState.PRESSED) {
+                    activeShapeState = FORCED_DROPPING;
+                }
+            }
+            gameFieldState = SHAPE_FALLING;
+
             ShapeType randomType
                     = Util.getRandomInstance(random, TetrisShapeType.class);
             BlockColor randomColor
                     = Util.getRandomInstance(random, BlockColor.class);
             BlockColor[] colors
                     = Shape.generateColorsArray(randomType, randomColor);
-            spawnNewActiveShape(randomType, SPAWN_COORDINATES, Rotation.INITIAL,
-                    colors);
-            // the old active shape first needs to be broken into blocks
-            removeFilledRows(startY, startY + 3);
-        }
-
-        if (lastDropCounter >= softDropDuration && !forcedDrop
-                || lastDropCounter >= forcedDropDuration && forcedDrop) {
-            if (Shape.fits(activeShape, activeShape.getShapeType(),
-                    activeShape.getTileCoords().add(iVect(0, 1)),
-                    activeShape.getRotation(), this)) {
-                activeShape.tileShift(iVect(0, 1));
-                int duration = forcedDrop
-                        ? forcedDropDuration
-                        : softDropDuration;
-                activeShape.addDropAnimation(duration);
-                lastDropCounter = 0;
-            } else {
-                appearanceDelayTimer
-                        = activeShape.getTimeTillAnimationFinishes();
-                shapeFallen = true;
-            }
+            spawnNewActiveShape(randomType, SPAWN_COORDINATES,
+                    Rotation.INITIAL, colors);
         }
     }
 
     @Override
     public void control(EnumMap<InputKey, KeyState> inputs) {
+        lastInputs = inputs;
+
         int xShift = 0;
         Rotation rotationDirection = Rotation.INITIAL;
 
@@ -368,12 +405,15 @@ public class GameField extends Entity implements TileField, Controllable {
             if (key.getValue() == KeyState.PRESSED) {
                 switch (key.getKey()) {
                     case ARROW_DOWN:
-                        if (!forcedDrop) {
+                        if (activeShapeState.fell()) {
+                            break;
+                        }
+                        if (activeShapeState == SOFT_DROPPING) {
                             lastDropCounter = (int) Math.round(
                                 (1.0 * lastDropCounter / softDropDuration)
                                 * forcedDropDuration);
                         }
-                        forcedDrop = true;
+                        activeShapeState = FORCED_DROPPING;
                         HVLinearAnimation currentDropAnimation =
                                 activeShape.getDropAnimation();
                         if (currentDropAnimation != null
@@ -401,12 +441,15 @@ public class GameField extends Entity implements TileField, Controllable {
             if (key.getValue() == KeyState.RELEASED) {
                 switch (key.getKey()) {
                     case ARROW_DOWN:
-                        if (forcedDrop) {
+                        if (activeShapeState.fell()) {
+                            break;
+                        }
+                        if (activeShapeState == FORCED_DROPPING) {
                             lastDropCounter = (int) Math.round(
                                 (1.0 * lastDropCounter / forcedDropDuration)
                                 * softDropDuration);
                         }
-                        forcedDrop = false;
+                        activeShapeState = SOFT_DROPPING;
                         HVLinearAnimation currentDropAnimation =
                                 activeShape.getDropAnimation();
                         if (currentDropAnimation != null
@@ -423,7 +466,7 @@ public class GameField extends Entity implements TileField, Controllable {
         // buttons in this state, when the old shape fell but a new
         // one has not yet spawned, would change the initial position
         // of a newly spawned shape
-        if (xShift != 0 && !shapeFallen) {
+        if (xShift != 0 && !activeShapeState.fell()) {
             if (activeShape != null && Shape.fits(activeShape,
                     activeShape.getShapeType(),
                     activeShape.getTileCoords().add(iVect(xShift, 0)),
@@ -433,7 +476,7 @@ public class GameField extends Entity implements TileField, Controllable {
                         userControlAnimationDuration);
             }
         }
-        if (activeShape != null && !shapeFallen
+        if (activeShape != null && !activeShapeState.fell()
                 && (rotationDirection.equals(Rotation.LEFT)
                 || rotationDirection.equals(Rotation.RIGHT))) {
             Rotation newRotation
@@ -460,12 +503,24 @@ public class GameField extends Entity implements TileField, Controllable {
                         activeShape.addRotationAnimation(rotationDirection,
                                 userControlAnimationDuration);
                         // wait until the wall kick animation finishes
-                        lastDropCounter
-                            = activeShape.getTimeTillAnimationFinishes();
+                        lastDropCounter = 0;
                         break;
                     }
                 }
             }
         }
     }
+
+    public enum ActiveShapeState {
+        NOT_SPAWNED, SOFT_DROPPING, FORCED_DROPPING, FELL, LOCKED;
+
+        public boolean fell() {
+            return this == FELL || this == LOCKED;
+        }
+    };
+
+    public enum GameFieldState {
+        STOPPED, PAUSED, SHAPE_FALLING, CLEARING_FILLED_LINES,
+        DROPPING_BLOCKS, READY_TO_SPAWN_NEW_SHAPE
+    };
 }
