@@ -68,6 +68,10 @@ public class GameField extends Entity implements TileField, Controllable {
     private ActiveShapeState activeShapeState = NOT_SPAWNED;
     private GameFieldState gameFieldState = STOPPED;
 
+    private ArrayList<Block> removedBlocks = new ArrayList<>();
+    private ArrayList<Block> droppedBlocks = new ArrayList<>();
+    private ArrayList<IntVector> droppedBlocksOldKeys = new ArrayList<>();
+
     /**
      * Creates an empty instance of a game field.
      *
@@ -102,6 +106,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
         ShapeType randomType
                 = Util.getRandomInstance(random, TetrisShapeType.class);
+        randomType = TetrisShapeType.I_SHAPE;
         BlockColor randomColor
                 = Util.getRandomInstance(random, BlockColor.class);
         BlockColor[] colors
@@ -148,7 +153,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
         // line indices are sorted from the top to the bottom
         ArrayList<Integer> clearedLinesIndices = new ArrayList<>();
-        ArrayList<Block> removedBlocks = new ArrayList<>();
+        removedBlocks = new ArrayList<>();
         // current same-row-blocks-streak
         ArrayList<Block> currentRowBlocks = new ArrayList<>();
         for (Block block : removalCandidates) {
@@ -169,19 +174,21 @@ public class GameField extends Entity implements TileField, Controllable {
             removedBlocks.addAll(currentRowBlocks);
             clearedLinesIndices.add(currentRow);
         }
-        removalCandidates.removeAll(removedBlocks);
 
         // move down rows that were above the cleared rows
         if (clearedLinesIndices.size() != 0) {
-            final int bottomLine
-                    = clearedLinesIndices.get(clearedLinesIndices.size() - 1);
+            final int bottomLine = clearedLinesIndices
+                    .get(clearedLinesIndices.size() - 1) - 1;
+            droppedBlocks = new ArrayList<>();
             Collection<Block> blocksFallingDown = fallenBlocks.subMap(
                     new IntVector(0, 0), true,
-                    new IntVector(width - 1, bottomLine), false).values();
+                    new IntVector(width - 1, bottomLine), true).values();
+            // these has not yet been removed from the fallenBlocks mapping
+            blocksFallingDown.removeAll(removedBlocks);
 
             int removedLinesLeft = clearedLinesIndices.size();
             final int removedLinesCount = clearedLinesIndices.size();
-            ArrayList<IntVector> oldKeys = new ArrayList<>();
+            droppedBlocksOldKeys = new ArrayList<>();
             for (Block block : blocksFallingDown) {
                 // skip through the cleared lines to the one that is right
                 // under the current block
@@ -195,17 +202,9 @@ public class GameField extends Entity implements TileField, Controllable {
                 if (removedLinesLeft == 0) {
                     break;
                 }
-                oldKeys.add(block.getTileCoords());
+                droppedBlocks.add(block);
+                droppedBlocksOldKeys.add(block.getTileCoords());
                 block.tileShift(iVect(0, removedLinesLeft));
-                block.addDropAnimation();
-            }
-            // update the mappings in the fallenBlocks mapping
-            // (make sure to update the blocks from the bottom to the top,
-            // otherwise you may override some present blocks' coordinates)
-            for (int i = oldKeys.size() - 1; i >= 0; i--) {
-                Block block = fallenBlocks.get(oldKeys.get(i));
-                fallenBlocks.remove(oldKeys.get(i));
-                fallenBlocks.put(block.getTileCoords(), block);
             }
         }
     }
@@ -369,7 +368,29 @@ public class GameField extends Entity implements TileField, Controllable {
 
 
             removeFilledRows(startY, startY + 3);
-            gameFieldState = DROPPING_BLOCKS;
+            if (!removedBlocks.isEmpty()) {
+                for (Block block : removedBlocks) {
+                    fallenBlocks.remove(block.getTileCoords());
+                }
+                removedBlocks.clear();
+
+                for (Block block : droppedBlocks) {
+                    block.addDropAnimation();
+                }
+                // update the mappings in the fallenBlocks mapping
+                // (make sure to update the blocks from the bottom to the top,
+                // otherwise you may override some present blocks' coordinates)
+                for (int i = droppedBlocksOldKeys.size() - 1; i >= 0; i--) {
+                    Block block = droppedBlocks.get(i);
+                    fallenBlocks.remove(droppedBlocksOldKeys.get(i));
+                    fallenBlocks.put(block.getTileCoords(), block);
+                }
+                droppedBlocks.clear();
+                droppedBlocksOldKeys.clear();
+                gameFieldState = DROPPING_BLOCKS;
+            } else {
+                gameFieldState = READY_TO_SPAWN_NEW_SHAPE;
+            }
         }
 
         if (gameFieldState == READY_TO_SPAWN_NEW_SHAPE) {
@@ -385,6 +406,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
             ShapeType randomType
                     = Util.getRandomInstance(random, TetrisShapeType.class);
+            randomType = TetrisShapeType.I_SHAPE;
             BlockColor randomColor
                     = Util.getRandomInstance(random, BlockColor.class);
             BlockColor[] colors

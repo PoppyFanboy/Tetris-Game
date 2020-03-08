@@ -23,6 +23,7 @@ public interface Animated {
      *          is negative.
      */
     void setScale(double newScale);
+    double getScale();
 
     /**
      * @throws  IllegalArgumentException in case {@code newOpacity}
