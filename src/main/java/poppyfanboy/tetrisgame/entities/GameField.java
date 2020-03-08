@@ -9,6 +9,7 @@ import java.util.Random;
 import java.util.TreeMap;
 
 import poppyfanboy.tetrisgame.Game;
+import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
 import poppyfanboy.tetrisgame.graphics.animation.HVLinearAnimation;
 import poppyfanboy.tetrisgame.input.Controllable;
@@ -22,6 +23,7 @@ import poppyfanboy.tetrisgame.util.Transform;
 
 import static java.lang.Math.abs;
 import static poppyfanboy.tetrisgame.util.IntVector.iVect;
+import poppyfanboy.tetrisgame.util.Util;
 
 /**
  * A game field entity. Wraps several block entities and a single shape
@@ -29,6 +31,7 @@ import static poppyfanboy.tetrisgame.util.IntVector.iVect;
  */
 public class GameField extends Entity implements TileField, Controllable {
     public static int DEFAULT_WIDTH = 10, DEFAULT_HEIGHT = 20;
+    public static IntVector SPAWN_COORDINATES = iVect(2, 0);
 
     // the game state to which this game field belongs
     private GameState gameState;
@@ -95,26 +98,31 @@ public class GameField extends Entity implements TileField, Controllable {
     }
 
     public void start() {
-        Shape activeShape = Shape.getRandomShapeEvenlyColored(random,
-                gameState, Rotation.INITIAL, new IntVector(0, 0), this,
-                this, TetrisShapeType.class);
-        spawnNewActiveShape(activeShape);
+        ShapeType randomType
+                = Util.getRandomInstance(random, TetrisShapeType.class);
+        BlockColor randomColor
+                = Util.getRandomInstance(random, BlockColor.class);
+        BlockColor[] colors
+                = Shape.generateColorsArray(randomType, randomColor);
+        spawnNewActiveShape(randomType, SPAWN_COORDINATES, Rotation.INITIAL,
+                colors);
     }
 
     /**
-     * Try to spawn the specified shape on a game field. The position at
-     * which the shape is spawned, is specified in the shape entity itself.
+     * Try to spawn the specified shape on a game field.
      *
      * This method can fail in case the inserted shape overlaps some
      * of the blocks on the field or it is out of the field bounds.
      */
-    private boolean spawnNewActiveShape(Shape newShape) {
-        if (!Shape.fits(newShape, newShape.getShapeType(),
-                newShape.getTileCoords(), newShape.getRotation(), this)) {
+    private boolean spawnNewActiveShape(ShapeType shapeType,
+            IntVector tileCoords, Rotation rotation,
+            BlockColor[] blockColors) {
+        if (!Shape.fits(shapeType, tileCoords, rotation, this)) {
             return false;
         }
-
-        // glue the previously active shape to the field
+        Shape newShape = new Shape(gameState, shapeType, rotation,
+                tileCoords, blockColors, this);
+        // break the previously active shape into separate blocks
         if (activeShape != null) {
             for (Block block : activeShape.getBlocks(this)) {
                fallenBlocks.put(block.getTileCoords(), block);
@@ -136,7 +144,8 @@ public class GameField extends Entity implements TileField, Controllable {
         final int width = getWidthInBlocks();
         IntVector startCoords = new IntVector(0, startY);
         IntVector endCoords = new IntVector(width - 1, endY);
-        // * the iterator returns the blocks in the ascending order
+        // the iterator returns the blocks from top the top
+        // ones down to the bottom ones
         Collection<Block> removalCandidates
                 = fallenBlocks.subMap(startCoords, true, endCoords, true)
                 .values();
@@ -169,29 +178,24 @@ public class GameField extends Entity implements TileField, Controllable {
 
         // move down rows that were above the cleared rows
         if (clearedLinesIndices.size() != 0) {
+            final int bottomLine
+                    = clearedLinesIndices.get(clearedLinesIndices.size() - 1);
             Collection<Block> blocksFallingDown = fallenBlocks.subMap(
                     new IntVector(0, 0), true,
-                    new IntVector(width - 1, clearedLinesIndices.get(clearedLinesIndices.size() - 1)), false).values();
-            int closestRemovedRowIndex = clearedLinesIndices.size() - 1;
+                    new IntVector(width - 1, bottomLine), false).values();
 
+            int removedLinesLeft = clearedLinesIndices.size();
             ArrayList<IntVector> oldKeys = new ArrayList<>();
-            // ArrayList<IntVector> newKeys = new ArrayList<>();
             for (Block block : blocksFallingDown) {
                 while (block.getTileCoords().getY()
-                        > clearedLinesIndices.get(closestRemovedRowIndex)) {
-                    closestRemovedRowIndex--;
+                        > clearedLinesIndices.get(removedLinesLeft - 1)) {
+                    removedLinesLeft--;
                 }
-                // update the coordinates in the mapping
-                IntVector oldCoords = block.getTileCoords();
-                IntVector newCoords = block.getTileCoords().add(0, closestRemovedRowIndex + 1);
-                oldKeys.add(oldCoords);
-                // newKeys.add(newCoords);
-
-                // block.tileShift(new IntVector(0, closestRemovedRowIndex + 1));
-                block.dropDown(closestRemovedRowIndex + 1);
+                oldKeys.add(block.getTileCoords());
+                block.tileShift(iVect(0, removedLinesLeft));
+                block.addDropAnimation();
             }
-
-            // update the fallenBlocks set
+            // update the mappings in the fallenBlocks mapping
             // (make sure to update the blocks from the bottom to the top,
             // otherwise you may override some present blocks' coordinates)
             for (int i = oldKeys.size() - 1; i >= 0; i--) {
@@ -324,12 +328,14 @@ public class GameField extends Entity implements TileField, Controllable {
             shapeFallen = false;
 
             final int startY = activeShape.getTileCoords().getY();
-            Shape newActiveShape
-                    = Shape.getRandomShapeEvenlyColored(random,
-                    gameState, Rotation.INITIAL, new IntVector(0, 0),
-                    this, this, TetrisShapeType.class);
-            this.spawnNewActiveShape(newActiveShape);
-
+            ShapeType randomType
+                    = Util.getRandomInstance(random, TetrisShapeType.class);
+            BlockColor randomColor
+                    = Util.getRandomInstance(random, BlockColor.class);
+            BlockColor[] colors
+                    = Shape.generateColorsArray(randomType, randomColor);
+            spawnNewActiveShape(randomType, SPAWN_COORDINATES, Rotation.INITIAL,
+                    colors);
             // the old active shape first needs to be broken into blocks
             removeFilledRows(startY, startY + 3);
         }

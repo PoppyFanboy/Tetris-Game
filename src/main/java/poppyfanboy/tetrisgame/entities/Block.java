@@ -1,7 +1,6 @@
 package poppyfanboy.tetrisgame.entities;
 
 import java.awt.AlphaComposite;
-import java.awt.BasicStroke;
 import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
@@ -9,7 +8,6 @@ import java.awt.image.BufferedImage;
 
 import poppyfanboy.tetrisgame.graphics.animation.AcceleratedMoveAnimation;
 import poppyfanboy.tetrisgame.graphics.animation.Animated;
-import poppyfanboy.tetrisgame.graphics.animation.MoveAnimation;
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.graphics.Assets;
 import poppyfanboy.tetrisgame.states.GameState;
@@ -30,11 +28,8 @@ public class Block extends Entity implements TileFieldObject, Animated {
     private Rotation rotation;
     private BlockColor blockColor;
 
-    private GameField gameField;
     private Entity parentEntity;
-
-    // visual representation
-    private DoubleVector refCoords;
+    private DoubleVector coords;
 
     private AcceleratedMoveAnimation dropAnimation;
 
@@ -43,40 +38,32 @@ public class Block extends Entity implements TileFieldObject, Animated {
      */
     public Block(GameState gameState, IntVector tileCoords,
             DoubleVector tileRotationPivot, BlockColor blockColor,
-            Entity parentEntity, DoubleVector refCoords,
-            GameField gameField) {
+            Entity parentEntity, DoubleVector coords) {
         this.gameState = gameState;
-        this.gameField = gameField;
         this.parentEntity = parentEntity;
-        // tile-field related
         this.tileCoords = tileCoords;
         this.tileRotationPivot = tileRotationPivot;
         this.blockColor = blockColor;
-        // visual representation related
-        this.refCoords = refCoords;
-
+        this.coords = coords;
         rotation = Rotation.INITIAL;
     }
 
     public Block(Block block, Entity parentEntity,
-            DoubleVector refCoords) {
+            DoubleVector coords) {
         this(block.gameState, block.tileCoords, block.tileRotationPivot,
-                block.blockColor, parentEntity, refCoords,
-                block.gameField);
+                block.blockColor, parentEntity, coords);
     }
 
     @Override
     public void tileMove(IntVector newCoords) {
         IntVector shiftDirection = newCoords.subtract(tileCoords);
         tileRotationPivot = tileRotationPivot.add(shiftDirection);
-
         tileCoords = newCoords;
     }
 
-    public void dropDown(int dy) {
-        tileCoords = tileCoords.add(0, dy);
+    public void addDropAnimation() {
         final int blockWidth = gameState.getBlockWidth();
-        dropAnimation = new AcceleratedMoveAnimation(refCoords,
+        dropAnimation = new AcceleratedMoveAnimation(coords,
                 tileCoords.times(blockWidth).toDouble(), 0.0);
     }
 
@@ -111,7 +98,7 @@ public class Block extends Entity implements TileFieldObject, Animated {
 
     @Override
     public Transform getLocalTransform() {
-        return new Transform(refCoords);
+        return new Transform(coords);
     }
 
     @Override
@@ -119,7 +106,6 @@ public class Block extends Entity implements TileFieldObject, Animated {
         if (dropAnimation != null && !dropAnimation.finished()) {
             dropAnimation.perform(this, interpolation);
         }
-
         // draw blocks as they are on the tile field
         /*final int blockWidth = gameState.getBlockWidth();
         g.setColor(BlockColor.BLUE.getColor());
@@ -194,12 +180,12 @@ public class Block extends Entity implements TileFieldObject, Animated {
 
     @Override
     public void setCoords(DoubleVector newCoords) {
-        refCoords = newCoords;
+        coords = newCoords;
     }
 
     @Override
     public DoubleVector getCoords() {
-        return refCoords;
+        return coords;
     }
 
     @Override

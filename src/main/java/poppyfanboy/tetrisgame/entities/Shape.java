@@ -30,18 +30,16 @@ import static java.lang.Math.abs;
 public class Shape extends Entity implements TileFieldObject, Animated {
     private GameState gameState;
 
-    private ShapeType shapeType;
-    // current rotation position of the shape (in terms of the tile field)
+    // tile field related
     private Rotation rotation;
+    private ShapeType shapeType;
     private IntVector tileCoords;
     private Block[] blocks;
-
-    private GameField gameField;
-    private Entity parentEntity;
 
     // visual representation
     private double rotationAngle;
     private DoubleVector coords;
+    private Entity parentEntity;
 
 
     // each new animation cancels the previous one (the exception is
@@ -60,13 +58,11 @@ public class Shape extends Entity implements TileFieldObject, Animated {
      */
     public Shape(GameState gameState, ShapeType shapeType,
             Rotation rotation, IntVector tileCoords,
-            BlockColor[] blockColors, GameField gameField,
-            Entity parentEntity) {
+            BlockColor[] blockColors, Entity parentEntity) {
         this.gameState = gameState;
         this.shapeType = shapeType;
         this.rotation = rotation;
         this.tileCoords = tileCoords;
-        this.gameField = gameField;
         this.parentEntity = parentEntity;
 
         final int blockWidth = gameState.getBlockWidth();
@@ -85,8 +81,7 @@ public class Shape extends Entity implements TileFieldObject, Animated {
                 if (shapeType.isSolid(x, y, rotation)) {
                     blocks.add(new Block(gameState, tileCoords.add(x, y),
                         rotationPivot, blockColors[solidBlockIndex], this,
-                        new DoubleVector(x * blockWidth, y * blockWidth),
-                        gameField));
+                        new DoubleVector(x * blockWidth, y * blockWidth)));
                     solidBlockIndex++;
                 }
             }
@@ -100,24 +95,9 @@ public class Shape extends Entity implements TileFieldObject, Animated {
      */
     public Shape(GameState gameState, ShapeType shapeType,
             Rotation rotation, IntVector tileCoords, BlockColor blockColor,
-            GameField gameField, Entity parentEntity) {
+            Entity parentEntity) {
         this(gameState, shapeType, rotation, tileCoords,
-                generateColorsArray(shapeType, blockColor), gameField,
-                parentEntity);
-    }
-
-    /**
-     * Generate a colors array for the given shape type where each
-     * block is colored in `blockColor`.
-     */
-    private static BlockColor[] generateColorsArray(ShapeType shapeType,
-            BlockColor blockColor) {
-        final int solidBlocksCount = shapeType.getSolidBlocksNumber();
-        BlockColor[] blockColors = new BlockColor[solidBlocksCount];
-        for (int i = 0; i < solidBlocksCount; i++) {
-            blockColors[i] = blockColor;
-        }
-        return blockColors;
+                generateColorsArray(shapeType, blockColor), parentEntity);
     }
 
     /**
@@ -330,7 +310,7 @@ public class Shape extends Entity implements TileFieldObject, Animated {
 
     @Override
     public Entity getParentEntity() {
-        return gameField;
+        return parentEntity;
     }
 
     @Override
@@ -394,37 +374,6 @@ public class Shape extends Entity implements TileFieldObject, Animated {
         return convexHull;
     }
 
-    @SafeVarargs
-    public static <E extends Enum<? extends ShapeType>> Shape
-        getRandomShapeEvenlyColored(Random random, GameState gameState,
-            Rotation rotation, IntVector tileCoords, GameField gameField,
-            Entity parentEntity, Class<? extends E>... shapeTypes) {
-        ShapeType randomType
-                = (ShapeType) Util.getRandomInstance(random, shapeTypes);
-        BlockColor randomColor
-                = Util.getRandomInstance(random, BlockColor.class);
-        return new Shape(gameState, randomType, rotation,
-                tileCoords, randomColor, gameField, parentEntity);
-    }
-
-    @SafeVarargs
-    public static <E extends Enum<? extends ShapeType>> Shape
-        getRandomShapeRandomlyColored(Random random, GameState gameState,
-            Rotation rotation, IntVector tileCoords, GameField gameField,
-            Entity parentEntity, Class<? extends E>... shapeTypes) {
-        ShapeType randomType
-                = (ShapeType) Util.getRandomInstance(random, shapeTypes);
-        // count solid blocks
-        int solidBlocksCount = randomType.getSolidBlocksNumber();
-        BlockColor[] randomColors = new BlockColor[solidBlocksCount];
-        for (int i = 0; i < randomColors.length; i++) {
-            randomColors[i]
-                    = Util.getRandomInstance(random, BlockColor.class);
-        }
-        return new Shape(gameState, randomType, rotation, tileCoords,
-                randomColors, gameField, parentEntity);
-    }
-
     /**
      * Checks, if the shape with the specified parameters fits into
      * the specified tile field.
@@ -471,5 +420,19 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     public static boolean fits(ShapeType shapeType, IntVector tileCoords,
             Rotation rotation, TileField tileField) {
         return fits(null, shapeType, tileCoords, rotation, tileField);
+    }
+
+    /**
+     * Generate a colors array for the given shape type where each
+     * block is colored in `blockColor`.
+     */
+    public static BlockColor[] generateColorsArray(ShapeType shapeType,
+            BlockColor blockColor) {
+        final int solidBlocksCount = shapeType.getSolidBlocksNumber();
+        BlockColor[] blockColors = new BlockColor[solidBlocksCount];
+        for (int i = 0; i < solidBlocksCount; i++) {
+            blockColors[i] = blockColor;
+        }
+        return blockColors;
     }
 }

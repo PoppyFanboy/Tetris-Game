@@ -4,7 +4,7 @@ import poppyfanboy.tetrisgame.Game;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 
 public class AcceleratedMoveAnimation implements Animation {
-    private static final double ACCELERATION = 500.0;
+    private static final double ACCELERATION = 0.1;
 
     private final DoubleVector startCoords, endCoords;
     // traversed distance at the current tick
@@ -27,9 +27,9 @@ public class AcceleratedMoveAnimation implements Animation {
     public void tick() {
         if (!finished()) {
             currentDuration++;
-            double t = (1.0 * currentDuration) / Game.TICKS_PER_SECOND;
-            // S = vt + at^2
-            currentDistance = t * initialSpeed + ACCELERATION * t * t;
+            double t = currentDuration;
+            // S = vt + at^2 / 2
+            currentDistance = t * initialSpeed + ACCELERATION * t * t / 2;
             if (currentDistance
                     > endCoords.subtract(startCoords).length()) {
                 currentDistance = endCoords.subtract(startCoords).length();
@@ -40,8 +40,7 @@ public class AcceleratedMoveAnimation implements Animation {
 
     @Override
     public void perform(Animated object, double interpolation) {
-        double t = (currentDuration + interpolation)
-                / Game.TICKS_PER_SECOND;
+        double t = currentDuration + interpolation;
         double currentDistance = t * initialSpeed + ACCELERATION * t * t;
         if (currentDistance > endCoords.subtract(startCoords).length()) {
             currentDistance = endCoords.subtract(startCoords).length();
@@ -63,7 +62,12 @@ public class AcceleratedMoveAnimation implements Animation {
 
     @Override
     public int timeLeft() {
-        // implementation placeholder
-        return 0;
+        double distance = endCoords.subtract(startCoords).length();
+        return (int) Math.round(
+                (-initialSpeed
+                + Math.sqrt(
+                    initialSpeed * initialSpeed
+                    + 8 * ACCELERATION * distance))
+                / (2 * ACCELERATION));
     }
 }
