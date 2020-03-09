@@ -73,7 +73,8 @@ public class Block extends Entity implements TileFieldObject, Animated {
     }
 
     public void addBlockBreakAnimation(int duration) {
-        blockBreakAnimation = new BlockBreakAnimation(duration);
+        blockBreakAnimation
+                = new BlockBreakAnimation(rotationAngle, scale, duration);
     }
 
     public void rotate(Rotation rotationDirection) {
@@ -235,6 +236,11 @@ public class Block extends Entity implements TileFieldObject, Animated {
     @Override
     public void setRotationAngle(double newRotationAngle) {
         rotationAngle = newRotationAngle;
+    }
+
+    @Override
+    public double getRotationAngle() {
+        return rotationAngle;
     }
 
     @Override

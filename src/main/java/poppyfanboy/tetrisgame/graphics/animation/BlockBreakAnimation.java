@@ -5,13 +5,18 @@ package poppyfanboy.tetrisgame.graphics.animation;
  */
 public class BlockBreakAnimation implements Animation {
     private static final double FINAL_ROTATION_ANGLE = -Math.PI / 3;
-    private static final double FINAL_SCALE = 0.4;
+    private static final double SCALE_COEFFICIENT = 0.3;
+
+    private final double startScale, startAngle;
 
     private int duration;
     private int currentDuration = 0;
 
-    public BlockBreakAnimation(int duration) {
+    public BlockBreakAnimation(double startAngle, double startScale,
+            int duration) {
         this.duration = duration;
+        this.startAngle = startAngle;
+        this.startScale = startScale;
     }
 
     @Override
@@ -25,10 +30,11 @@ public class BlockBreakAnimation implements Animation {
     public void perform(Animated object, double interpolation) {
         double progress = (currentDuration + interpolation) / duration;
         object.setOpacity(1.0 - progress);
-        object.setRotationAngle(FINAL_ROTATION_ANGLE * progress);
-        double newScale = object.getScale()
-                + (FINAL_SCALE - object.getScale()) * progress;
-        object.setScale(newScale);
+        // the object shrinks from initial `startScale` to
+        // `SCALE_COEFFICIENT * startScale`
+        object.setScale(startScale
+                + progress * (SCALE_COEFFICIENT * startScale - startScale));
+        object.setRotationAngle(startAngle + progress * FINAL_ROTATION_ANGLE);
     }
 
     @Override

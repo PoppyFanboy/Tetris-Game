@@ -17,6 +17,7 @@ public interface Animated {
     DoubleVector getCoords();
 
     void setRotationAngle(double newRotationAngle);
+    double getRotationAngle();
 
     /**
      * @throws  IllegalArgumentException in case {@code newScale} argument

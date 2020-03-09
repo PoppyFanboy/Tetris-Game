@@ -348,6 +348,11 @@ public class Shape extends Entity implements TileFieldObject, Animated {
     }
 
     @Override
+    public double getRotationAngle() {
+        return rotationAngle;
+    }
+
+    @Override
     public void setOpacity(double newOpacity) {
         if (newOpacity < 0 || newOpacity > 1.0) {
             throw new IllegalArgumentException(String.format(
