@@ -7,38 +7,39 @@ import java.util.List;
 import poppyfanboy.tetrisgame.entities.Block;
 import poppyfanboy.tetrisgame.entities.GameField;
 import poppyfanboy.tetrisgame.graphics.Animation;
-import poppyfanboy.tetrisgame.graphics.animation2D.AcceleratedMoveAnimation;
+import poppyfanboy.tetrisgame.graphics.animation2D.BlockBreakAnimation;
 
-public class BlocksDropAnimation implements Animation<GameField> {
-    private List<AcceleratedMoveAnimation> blocksAnimations;
-    private List<Block> droppingBlocks;
+public class BlocksBreakAnimation implements Animation<GameField> {
+    private List<BlockBreakAnimation> blocksAnimations;
+    private List<Block> brokenBlocks;
 
-    public BlocksDropAnimation(Collection<Block> droppingBlocks) {
-        this.droppingBlocks = new LinkedList<>(droppingBlocks);
+    public BlocksBreakAnimation(Collection<Block> brokenBlocks,
+            int duration) {
+        this.brokenBlocks = new LinkedList<>(brokenBlocks);
 
         blocksAnimations = new LinkedList<>();
-        for (Block block : droppingBlocks) {
-            blocksAnimations.add(block.createDropAnimation());
+        for (Block block : brokenBlocks) {
+            blocksAnimations.add(block.createBlockBreakAnimation(duration));
         }
     }
 
     @Override
     public void tick() {
-        Iterator<AcceleratedMoveAnimation> animationsIterator
+        Iterator<BlockBreakAnimation> animationsIterator
                 = blocksAnimations.iterator();
         while (animationsIterator.hasNext()) {
-            AcceleratedMoveAnimation animation = animationsIterator.next();
+            BlockBreakAnimation animation = animationsIterator.next();
             animation.tick();
         }
     }
 
     @Override
     public void perform(GameField object, double interpolation) {
-        Iterator<AcceleratedMoveAnimation> animationsIterator
+        Iterator<BlockBreakAnimation> animationsIterator
                 = blocksAnimations.iterator();
-        Iterator<Block> blocksIterator = droppingBlocks.iterator();
+        Iterator<Block> blocksIterator = brokenBlocks.iterator();
         while (animationsIterator.hasNext()) {
-            AcceleratedMoveAnimation animation = animationsIterator.next();
+            BlockBreakAnimation animation = animationsIterator.next();
             Block block = blocksIterator.next();
             animation.perform(block, interpolation);
         }
@@ -51,7 +52,7 @@ public class BlocksDropAnimation implements Animation<GameField> {
 
     @Override
     public boolean finished() {
-        for (AcceleratedMoveAnimation animation : blocksAnimations) {
+        for (BlockBreakAnimation animation : blocksAnimations) {
             if (!animation.finished()) {
                 return false;
             }
@@ -61,11 +62,11 @@ public class BlocksDropAnimation implements Animation<GameField> {
 
     @Override
     public void finish(GameField object) {
-        Iterator<AcceleratedMoveAnimation> animationsIterator
+        Iterator<BlockBreakAnimation> animationsIterator
                 = blocksAnimations.iterator();
-        Iterator<Block> blocksIterator = droppingBlocks.iterator();
+        Iterator<Block> blocksIterator = brokenBlocks.iterator();
         while (animationsIterator.hasNext()) {
-            AcceleratedMoveAnimation animation = animationsIterator.next();
+            BlockBreakAnimation animation = animationsIterator.next();
             Block block = blocksIterator.next();
             animation.finish(block);
         }

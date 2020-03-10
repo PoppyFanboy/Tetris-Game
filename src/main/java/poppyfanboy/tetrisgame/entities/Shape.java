@@ -375,7 +375,6 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         return scale;
     }
 
-    @Override
     public int getTimeTillAnimationFinishes() {
         return Math.max(
             rotateAnimation == null

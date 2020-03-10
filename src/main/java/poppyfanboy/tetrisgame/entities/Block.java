@@ -35,9 +35,6 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
     private double scale = 1.0;
     private double opacity = 1.0;
 
-    private AcceleratedMoveAnimation dropAnimation;
-    private BlockBreakAnimation blockBreakAnimation;
-
     /**
      * Creates a block entity at the specified position on the game field.
      */
@@ -66,15 +63,15 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
         tileCoords = newCoords;
     }
 
-    public void addDropAnimation() {
+    public AcceleratedMoveAnimation createDropAnimation() {
         final int blockWidth = gameState.getBlockWidth();
-        dropAnimation = new AcceleratedMoveAnimation(coords,
+
+        return new AcceleratedMoveAnimation(coords,
                 tileCoords.times(blockWidth).toDouble(), 0.0);
     }
 
-    public void addBlockBreakAnimation(int duration) {
-        blockBreakAnimation
-                = new BlockBreakAnimation(rotationAngle, scale, duration);
+    public BlockBreakAnimation createBlockBreakAnimation(int duration) {
+        return new BlockBreakAnimation(rotationAngle, scale, duration);
     }
 
     public void rotate(Rotation rotationDirection) {
@@ -95,14 +92,6 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public void tick() {
-        if (dropAnimation != null && !dropAnimation.finished()) {
-            dropAnimation.tick();
-            dropAnimation.perform(this);
-        }
-        if (blockBreakAnimation != null && !blockBreakAnimation.finished()) {
-            blockBreakAnimation.tick();
-            blockBreakAnimation.perform(this);
-        }
     }
 
     @Override
@@ -122,12 +111,6 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public void render(Graphics2D g, double interpolation) {
-        if (dropAnimation != null && !dropAnimation.finished()) {
-            dropAnimation.perform(this, interpolation);
-        }
-        if (blockBreakAnimation != null && !blockBreakAnimation.finished()) {
-            blockBreakAnimation.perform(this, interpolation);
-        }
         final int blockWidth = gameState.getBlockWidth();
         // draw blocks as they are on the tile field
         /*
@@ -267,14 +250,5 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
     @Override
     public double getScale() {
         return scale;
-    }
-
-    @Override
-    public int getTimeTillAnimationFinishes() {
-        return Math.max(
-                dropAnimation == null ? 0 : dropAnimation.timeLeft(),
-                blockBreakAnimation == null
-                    ? 0
-                    : blockBreakAnimation.timeLeft());
     }
 }

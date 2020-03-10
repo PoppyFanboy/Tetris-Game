@@ -31,11 +31,4 @@ public interface Animated2D {
      *          argument does not lie within the {@code [0, 1]} interval.
      */
     void setOpacity(double newOpacity);
-
-    /**
-     * In case there are any animations applied to the object, returns
-     * the duration of the longest animation among all of them. Otherwise
-     * returns {@code 0}.
-     */
-    int getTimeTillAnimationFinishes();
 }
