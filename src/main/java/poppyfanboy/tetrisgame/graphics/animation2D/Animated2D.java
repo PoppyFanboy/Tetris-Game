@@ -1,4 +1,4 @@
-package poppyfanboy.tetrisgame.graphics.animation;
+package poppyfanboy.tetrisgame.graphics.animation2D;
 
 import poppyfanboy.tetrisgame.util.DoubleVector;
 
@@ -12,7 +12,7 @@ import poppyfanboy.tetrisgame.util.DoubleVector;
  * than the other, so they will have stronger affect on the appeal of the
  * object.
  */
-public interface Animated {
+public interface Animated2D {
     void setCoords(DoubleVector newCoords);
     DoubleVector getCoords();
 

@@ -1,9 +1,11 @@
-package poppyfanboy.tetrisgame.graphics.animation;
+package poppyfanboy.tetrisgame.graphics.animation2D;
+
+import poppyfanboy.tetrisgame.graphics.Animation;
 
 /**
  * Animation that is used for breaking the blocks in the full filled line.
  */
-public class BlockBreakAnimation implements Animation {
+public class BlockBreakAnimation implements Animation<Animated2D> {
     private static final double FINAL_ROTATION_ANGLE = -Math.PI / 3;
     private static final double SCALE_COEFFICIENT = 0.3;
 
@@ -27,7 +29,7 @@ public class BlockBreakAnimation implements Animation {
     }
 
     @Override
-    public void perform(Animated object, double interpolation) {
+    public void perform(Animated2D object, double interpolation) {
         double progress = (currentDuration + interpolation) / duration;
         object.setOpacity(1.0 - progress);
         // the object shrinks from initial `startScale` to
@@ -38,7 +40,7 @@ public class BlockBreakAnimation implements Animation {
     }
 
     @Override
-    public void perform(Animated object) {
+    public void perform(Animated2D object) {
         perform(object, 0.0);
     }
 
@@ -48,7 +50,7 @@ public class BlockBreakAnimation implements Animation {
     }
 
     @Override
-    public void finish(Animated object) {
+    public void finish(Animated2D object) {
         currentDuration = duration;
         perform(object);
     }

@@ -1,10 +1,11 @@
-package poppyfanboy.tetrisgame.graphics.animation;
+package poppyfanboy.tetrisgame.graphics.animation2D;
 
+import poppyfanboy.tetrisgame.graphics.Animation;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 
 import static java.lang.Math.min;
 
-public class MoveAnimation implements Animation {
+public class MoveAnimation implements Animation<Animated2D> {
     private final int duration;
     private final DoubleVector startCoords, endCoords;
     private int currentDuration;
@@ -42,7 +43,7 @@ public class MoveAnimation implements Animation {
     }
 
     @Override
-    public void perform(Animated object, double interpolation) {
+    public void perform(Animated2D object, double interpolation) {
         double progress = (currentDuration + interpolation) / duration;
 
         DoubleVector currCoords = startCoords.times(1 - progress)
@@ -51,7 +52,7 @@ public class MoveAnimation implements Animation {
     }
 
     @Override
-    public void perform(Animated object) {
+    public void perform(Animated2D object) {
         perform(object, 0.0);
     }
 
@@ -66,7 +67,7 @@ public class MoveAnimation implements Animation {
     }
 
     @Override
-    public void finish(Animated object) {
+    public void finish(Animated2D object) {
         currentDuration = duration;
         perform(object);
     }

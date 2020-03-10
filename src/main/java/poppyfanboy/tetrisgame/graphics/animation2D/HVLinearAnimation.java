@@ -1,6 +1,7 @@
-package poppyfanboy.tetrisgame.graphics.animation;
+package poppyfanboy.tetrisgame.graphics.animation2D;
 
 import static java.lang.Math.min;
+import poppyfanboy.tetrisgame.graphics.Animation;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 
 /**
@@ -8,7 +9,7 @@ import poppyfanboy.tetrisgame.util.DoubleVector;
  * changing the y coordinates or moves the object horizontally
  * not changing the x coordinate as well.
  */
-public class HVLinearAnimation implements Animation {
+public class HVLinearAnimation implements Animation<Animated2D> {
     private final double startCoords, endCoords;
     private int duration;
     private int currentDuration;
@@ -43,7 +44,7 @@ public class HVLinearAnimation implements Animation {
     }
 
     @Override
-    public void perform(Animated object, double interpolation) {
+    public void perform(Animated2D object, double interpolation) {
         double progress = (currentDuration + interpolation) / duration;
         double currCoords
                 = startCoords * (1 - progress) + endCoords * progress;
@@ -58,7 +59,7 @@ public class HVLinearAnimation implements Animation {
     }
 
     @Override
-    public void perform(Animated object) {
+    public void perform(Animated2D object) {
         perform(object, 0.0);
     }
 
@@ -73,7 +74,7 @@ public class HVLinearAnimation implements Animation {
     }
 
     @Override
-    public void finish(Animated object) {
+    public void finish(Animated2D object) {
         currentDuration = duration;
         perform(object);
     }

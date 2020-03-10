@@ -5,21 +5,18 @@ import java.awt.Graphics2D;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
-import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
-import poppyfanboy.tetrisgame.graphics.animation.HVLinearAnimation;
-import poppyfanboy.tetrisgame.graphics.animation.MoveAnimation;
-import poppyfanboy.tetrisgame.graphics.animation.RotateAnimation;
+import poppyfanboy.tetrisgame.graphics.animation2D.HVLinearAnimation;
+import poppyfanboy.tetrisgame.graphics.animation2D.MoveAnimation;
+import poppyfanboy.tetrisgame.graphics.animation2D.RotateAnimation;
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 import poppyfanboy.tetrisgame.util.Rotation;
 import poppyfanboy.tetrisgame.util.Transform;
-import poppyfanboy.tetrisgame.util.Util;
 
-import poppyfanboy.tetrisgame.graphics.animation.Animated;
+import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 
 import static java.lang.Math.abs;
 
@@ -27,7 +24,7 @@ import static java.lang.Math.abs;
  * In a nutshell this is just a bunch of glued blocks, that can be rotated
  * and moved around the game field.
  */
-public class Shape extends Entity implements TileFieldObject, Animated {
+public class Shape extends Entity implements TileFieldObject, Animated2D {
     private GameState gameState;
 
     // tile field related

@@ -1,10 +1,11 @@
-package poppyfanboy.tetrisgame.graphics.animation;
+package poppyfanboy.tetrisgame.graphics.animation2D;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.min;
 import static java.lang.Math.max;
+import poppyfanboy.tetrisgame.graphics.Animation;
 
-public class RotateAnimation implements Animation {
+public class RotateAnimation implements Animation<Animated2D> {
     private final double startAngle, endAngle;
     private final int duration;
     private int currentDuration;
@@ -44,14 +45,14 @@ public class RotateAnimation implements Animation {
     }
 
     @Override
-    public void perform(Animated object, double interpolation) {
+    public void perform(Animated2D object, double interpolation) {
         double progress = (currentDuration + interpolation) / duration;
         double angle = startAngle + (endAngle - startAngle) * progress;
         object.setRotationAngle(angle);
     }
 
     @Override
-    public void perform(Animated object) {
+    public void perform(Animated2D object) {
         perform(object, 0.0);
     }
 
@@ -66,7 +67,7 @@ public class RotateAnimation implements Animation {
     }
 
     @Override
-    public void finish(Animated object) {
+    public void finish(Animated2D object) {
         currentDuration = duration;
         perform(object);
     }

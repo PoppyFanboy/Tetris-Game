@@ -4,13 +4,9 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Random;
 import java.util.TreeMap;
@@ -19,10 +15,9 @@ import java.util.function.Consumer;
 import poppyfanboy.tetrisgame.Game;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
-import poppyfanboy.tetrisgame.graphics.animation.Animated;
-import poppyfanboy.tetrisgame.graphics.animation.Animation;
-import poppyfanboy.tetrisgame.graphics.animation.HVLinearAnimation;
-import poppyfanboy.tetrisgame.graphics.animation.RotateAnimation;
+import poppyfanboy.tetrisgame.graphics.Animation;
+import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
+import poppyfanboy.tetrisgame.graphics.animation2D.HVLinearAnimation;
 import poppyfanboy.tetrisgame.input.Controllable;
 import poppyfanboy.tetrisgame.input.InputKey;
 import poppyfanboy.tetrisgame.input.KeyState;
@@ -600,61 +595,104 @@ public class GameField extends Entity implements TileField, Controllable {
                     || this == SHAPE_FORCED_DROPPING
                     || this == SHAPE_WALL_KICKED;
         }
-    };
+    }
 
-    private class AnimationManager {
-        private Map<Animated, List<Animation>> animatedObjects
-                = new HashMap<>();
-        private Map<Animated, Consumer<Animation>> animationEndCallbacks
-                = new HashMap<>();
+    private static class AnimationManager {
+        private ObjectAnimationsPair<Animated2D> activeShapeAnimations;
+        private ObjectAnimationsPair<GameField> gameFieldAnimations;
+
+        public AnimationManager(Shape activeShape, GameField gameField) {
+            activeShapeAnimations = new ObjectAnimationsPair<>(activeShape);
+            gameFieldAnimations = new ObjectAnimationsPair<>(gameField);
+        }
+
+        public AnimationManager(GameField gameField) {
+            gameFieldAnimations = new ObjectAnimationsPair<>(gameField);
+        }
+
+        public void setActiveShape(Shape newActiveShape) {
+            activeShapeAnimations = new ObjectAnimationsPair<>(newActiveShape);
+        }
 
         public void tick() {
-            for (Map.Entry<Animated, List<Animation>> objectAnimationsPair
-                    : animatedObjects.entrySet()) {
-                Iterator<Animation> animationsIterator
-                        = objectAnimationsPair.getValue().iterator();
-                Animated object = objectAnimationsPair.getKey();
-                while (animationsIterator.hasNext()) {
-                    Animation animation = animationsIterator.next();
-                    animation.perform(object);
-                    if (animation.finished()) {
-                        if (animationEndCallbacks.containsKey(object)) {
-                            animationEndCallbacks.get(object)
-                                    .accept(animation);
-                        }
-                        animationsIterator.remove();
-                    }
+            activeShapeAnimations.tick();
+            gameFieldAnimations.tick();
+        }
+
+        public void addActiveShapeAnimation(Animation<Animated2D> animation) {
+            activeShapeAnimations.addAnimation(animation);
+        }
+
+        public void addActiveShapeAnimation(Animation<Animated2D> animation,
+                Consumer<Animation<Animated2D>> animationEndCallback) {
+            activeShapeAnimations.addAnimation(animation, animationEndCallback);
+        }
+
+        public void addGameFieldAnimation(Animation<GameField> animation,
+                Consumer<Animation<GameField>> animationEndCallback) {
+            gameFieldAnimations.addAnimation(animation, animationEndCallback);
+        }
+    }
+
+    private static class ObjectAnimationsPair<AnimatedObject> {
+        private AnimatedObject object;
+        private LinkedList<AnimationCallbackPair<AnimatedObject>>
+                activeAnimations = new LinkedList<>();
+
+        public ObjectAnimationsPair(AnimatedObject object) {
+            this.object = object;
+        }
+
+        public void tick() {
+            Iterator<AnimationCallbackPair<AnimatedObject>> animationsIterator
+                    = activeAnimations.iterator();
+            while (animationsIterator.hasNext()) {
+                AnimationCallbackPair<AnimatedObject> pair
+                        = animationsIterator.next();
+                Animation<AnimatedObject> animation = pair.getAnimation();
+                animation.perform(object);
+                if (animation.finished()) {
+                    pair.triggerCallback();
+                    animationsIterator.remove();
                 }
             }
         }
 
-        public void addAnimation(Animated object, Animation animation) {
-            assert object != null && animation != null;
-
-            if (animatedObjects.containsKey(object)) {
-                animatedObjects.get(object).add(animation);
-            } else {
-                animatedObjects.put(object,
-                    new LinkedList<>(Collections.singletonList(animation)));
-            }
+        public void addAnimation(Animation<AnimatedObject> animation) {
+            activeAnimations.add(new AnimationCallbackPair<>(animation));
         }
 
-        // Sends a notification with a reference to the animation that
-        // has just ended. Pass null as a callback to stop notifications.
-        // Each object can only have a single callback
-        public void notifyOnAnimationEnd(Animated object,
-                Consumer<Animation> callback) {
-            assert object != null && animatedObjects.containsKey(object)
-                    && (callback != null
-                            || animationEndCallbacks.containsKey(object));
+        public void addAnimation(Animation<AnimatedObject> animation,
+                Consumer<Animation<AnimatedObject>> animationEndCallBack) {
+            activeAnimations.add(new AnimationCallbackPair<>(
+                    animation, animationEndCallBack));
+        }
+    }
 
-            if (callback == null) {
-                if (animationEndCallbacks.containsKey(object)) {
-                    animationEndCallbacks.remove(object);
-                }
-            } else {
-                animationEndCallbacks.put(object, callback);
-            }
+    private static class AnimationCallbackPair<AnimatedObject> {
+        private Animation<AnimatedObject> animation;
+        private Consumer<Animation<AnimatedObject>> callback;
+
+        public AnimationCallbackPair(Animation<AnimatedObject> animation) {
+            this.animation = animation;
+        }
+
+        public AnimationCallbackPair(Animation<AnimatedObject> animation,
+                Consumer<Animation<AnimatedObject>> callback) {
+            this.animation = animation;
+            this.callback = callback;
+        }
+
+        public Animation<AnimatedObject> getAnimation() {
+            return animation;
+        }
+
+        public void addCallback(Consumer<Animation<AnimatedObject>> callback) {
+            this.callback = callback;
+        }
+
+        public void triggerCallback() {
+            callback.accept(animation);
         }
     }
 }

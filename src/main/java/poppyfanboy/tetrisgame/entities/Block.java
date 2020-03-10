@@ -6,9 +6,9 @@ import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 
-import poppyfanboy.tetrisgame.graphics.animation.AcceleratedMoveAnimation;
-import poppyfanboy.tetrisgame.graphics.animation.Animated;
-import poppyfanboy.tetrisgame.graphics.animation.BlockBreakAnimation;
+import poppyfanboy.tetrisgame.graphics.animation2D.AcceleratedMoveAnimation;
+import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
+import poppyfanboy.tetrisgame.graphics.animation2D.BlockBreakAnimation;
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.graphics.Assets;
 import poppyfanboy.tetrisgame.states.GameState;
@@ -21,7 +21,7 @@ import poppyfanboy.tetrisgame.util.Transform;
 /**
  * Represents a single solid block on the game field.
  */
-public class Block extends Entity implements TileFieldObject, Animated {
+public class Block extends Entity implements TileFieldObject, Animated2D {
     private GameState gameState;
 
     private IntVector tileCoords;
