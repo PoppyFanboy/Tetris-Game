@@ -9,8 +9,10 @@ import poppyfanboy.tetrisgame.util.DoubleVector;
  * changing the y coordinates or moves the object horizontally
  * not changing the x coordinate as well.
  */
-public class HVLinearAnimation implements Animation<Animated2D> {
+public class HVLinearAnimation implements Animation {
+    private final Animated2D object;
     private final double startCoords, endCoords;
+
     private int duration;
     private int currentDuration;
     private boolean isHorizontal;
@@ -19,14 +21,17 @@ public class HVLinearAnimation implements Animation<Animated2D> {
      * @param   isHorizontal {@code true} for the horizontal movement,
      *          {@code false} for the vertical movement.
      */
-    private HVLinearAnimation(double startCoords, double endCoords,
+    private HVLinearAnimation(Animated2D object,
+            double startCoords, double endCoords,
             int duration, double defaultShift, boolean isHorizontal) {
-        double distance = Math.abs(endCoords - startCoords);
-        this.duration
-                = (int) (min(distance / defaultShift, 1.0) * duration);
+        this.object = object;
         this.startCoords = startCoords;
         this.endCoords = endCoords;
         this.isHorizontal = isHorizontal;
+
+        double distance = Math.abs(endCoords - startCoords);
+        this.duration
+                = (int) (min(distance / defaultShift, 1.0) * duration);
         currentDuration = 0;
     }
 
@@ -44,7 +49,7 @@ public class HVLinearAnimation implements Animation<Animated2D> {
     }
 
     @Override
-    public void perform(Animated2D object, double interpolation) {
+    public void perform(double interpolation) {
         double progress = (currentDuration + interpolation) / duration;
         double currCoords
                 = startCoords * (1 - progress) + endCoords * progress;
@@ -59,8 +64,8 @@ public class HVLinearAnimation implements Animation<Animated2D> {
     }
 
     @Override
-    public void perform(Animated2D object) {
-        perform(object, 0.0);
+    public void perform() {
+        perform(0.0);
     }
 
     @Override
@@ -74,22 +79,22 @@ public class HVLinearAnimation implements Animation<Animated2D> {
     }
 
     @Override
-    public void finish(Animated2D object) {
+    public void finish() {
         currentDuration = duration;
-        perform(object);
+        perform();
     }
 
-    public static HVLinearAnimation getHorizontalAnimation(
+    public static HVLinearAnimation getHorizontalAnimation(Animated2D object,
             double startCoords, double endCoords, int duration,
             double defaultShift) {
-        return new HVLinearAnimation(startCoords, endCoords, duration,
-                defaultShift, true);
+        return new HVLinearAnimation(object, startCoords, endCoords,
+                duration, defaultShift, true);
     }
 
-    public static HVLinearAnimation getVerticalAnimation(
+    public static HVLinearAnimation getVerticalAnimation(Animated2D object,
             double startCoords, double endCoords, int duration,
             double defaultShift) {
-        return new HVLinearAnimation(startCoords, endCoords, duration,
-                defaultShift, false);
+        return new HVLinearAnimation(object, startCoords, endCoords,
+                duration, defaultShift, false);
     }
 }

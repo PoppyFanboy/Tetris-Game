@@ -5,9 +5,10 @@ import poppyfanboy.tetrisgame.util.DoubleVector;
 
 import static java.lang.Math.min;
 
-public class MoveAnimation implements Animation<Animated2D> {
+public class MoveAnimation implements Animation {
     private final int duration;
     private final DoubleVector startCoords, endCoords;
+    private final Animated2D object;
     private int currentDuration;
 
     /**
@@ -24,12 +25,14 @@ public class MoveAnimation implements Animation<Animated2D> {
      * is shortened proportional to how close are the "to" and "from"
      * points.
      */
-    public MoveAnimation(DoubleVector startCoords, DoubleVector endCoords,
+    public MoveAnimation(Animated2D object,
+            DoubleVector startCoords, DoubleVector endCoords,
             int duration, double defaultShift) {
         double distance = endCoords.subtract(startCoords).length();
         this.duration
             = (int) (min(distance / defaultShift, 1.0) * duration);
 
+        this.object = object;
         this.startCoords = startCoords;
         this.endCoords = endCoords;
         currentDuration = 0;
@@ -43,7 +46,7 @@ public class MoveAnimation implements Animation<Animated2D> {
     }
 
     @Override
-    public void perform(Animated2D object, double interpolation) {
+    public void perform(double interpolation) {
         double progress = (currentDuration + interpolation) / duration;
 
         DoubleVector currCoords = startCoords.times(1 - progress)
@@ -52,8 +55,8 @@ public class MoveAnimation implements Animation<Animated2D> {
     }
 
     @Override
-    public void perform(Animated2D object) {
-        perform(object, 0.0);
+    public void perform() {
+        perform(0.0);
     }
 
     @Override
@@ -67,8 +70,8 @@ public class MoveAnimation implements Animation<Animated2D> {
     }
 
     @Override
-    public void finish(Animated2D object) {
+    public void finish() {
         currentDuration = duration;
-        perform(object);
+        perform();
     }
 }

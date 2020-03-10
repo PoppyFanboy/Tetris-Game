@@ -1,10 +1,16 @@
 package poppyfanboy.tetrisgame.graphics;
 
-public interface Animation<AnimatedObject> {
+/**
+ * Animated object is expected to be embedded into the animation itself.
+ * *Not doing so* could make sense if the animations were something more
+ * complicated, and the same animations could be applied to different
+ * objects.
+ */
+public interface Animation {
     void tick();
-    void perform(AnimatedObject object, double interpolation);
-    void perform(AnimatedObject object);
+    void perform(double interpolation);
+    void perform();
     boolean finished();
-    void finish(AnimatedObject object);
+    void finish();
     int timeLeft();
 }

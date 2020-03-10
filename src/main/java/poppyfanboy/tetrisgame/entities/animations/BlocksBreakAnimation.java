@@ -9,13 +9,13 @@ import poppyfanboy.tetrisgame.entities.GameField;
 import poppyfanboy.tetrisgame.graphics.Animation;
 import poppyfanboy.tetrisgame.graphics.animation2D.BlockBreakAnimation;
 
-public class BlocksBreakAnimation implements Animation<GameField> {
+public class BlocksBreakAnimation implements Animation {
+    private final GameField gameField;
     private List<BlockBreakAnimation> blocksAnimations;
-    private List<Block> brokenBlocks;
 
-    public BlocksBreakAnimation(Collection<Block> brokenBlocks,
-            int duration) {
-        this.brokenBlocks = new LinkedList<>(brokenBlocks);
+    public BlocksBreakAnimation(GameField gameField,
+            Collection<Block> brokenBlocks, int duration) {
+        this.gameField = gameField;
 
         blocksAnimations = new LinkedList<>();
         for (Block block : brokenBlocks) {
@@ -34,20 +34,15 @@ public class BlocksBreakAnimation implements Animation<GameField> {
     }
 
     @Override
-    public void perform(GameField object, double interpolation) {
-        Iterator<BlockBreakAnimation> animationsIterator
-                = blocksAnimations.iterator();
-        Iterator<Block> blocksIterator = brokenBlocks.iterator();
-        while (animationsIterator.hasNext()) {
-            BlockBreakAnimation animation = animationsIterator.next();
-            Block block = blocksIterator.next();
-            animation.perform(block, interpolation);
+    public void perform(double interpolation) {
+        for (BlockBreakAnimation animation : blocksAnimations) {
+            animation.perform(interpolation);
         }
     }
 
     @Override
-    public void perform(GameField object) {
-        perform(object, 0.0);
+    public void perform() {
+        perform(0.0);
     }
 
     @Override
@@ -61,19 +56,20 @@ public class BlocksBreakAnimation implements Animation<GameField> {
     }
 
     @Override
-    public void finish(GameField object) {
-        Iterator<BlockBreakAnimation> animationsIterator
-                = blocksAnimations.iterator();
-        Iterator<Block> blocksIterator = brokenBlocks.iterator();
-        while (animationsIterator.hasNext()) {
-            BlockBreakAnimation animation = animationsIterator.next();
-            Block block = blocksIterator.next();
-            animation.finish(block);
+    public void finish() {
+        for (BlockBreakAnimation animation : blocksAnimations) {
+            animation.finish();
         }
     }
 
     @Override
     public int timeLeft() {
-        return 0;
+        int maxTimeLeft = 0;
+        for (Animation  animation : blocksAnimations) {
+            if (animation.timeLeft() > maxTimeLeft) {
+                maxTimeLeft = animation.timeLeft();
+            }
+        }
+        return maxTimeLeft;
     }
 }

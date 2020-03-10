@@ -239,8 +239,8 @@ public class GameField extends Entity implements TileField, Controllable {
         gameField.removeFilledRows(startY, startY + 3);
         if (!gameField.removedBlocks.isEmpty()) {
             gameField.animationManager.addGameFieldAnimation(
-                    new BlocksBreakAnimation(gameField.removedBlocks,
-                            gameField.blockBreakDuration),
+                    new BlocksBreakAnimation(gameField,
+                            gameField.removedBlocks, gameField.blockBreakDuration),
                     GameField::dropBlocks);
             gameField.state = CLEARING_FILLED_LINES;
         } else {
@@ -262,7 +262,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
         if (!gameField.droppedBlocks.isEmpty()) {
             gameField.animationManager.addGameFieldAnimation(
-                    new BlocksDropAnimation(gameField.droppedBlocks),
+                    new BlocksDropAnimation(gameField, gameField.droppedBlocks),
                     GameField::spawnNewShape);
 
             // update the mappings in the fallenBlocks mapping
@@ -612,8 +612,8 @@ public class GameField extends Entity implements TileField, Controllable {
 
     private static class AnimationManager {
         private GameField gameField;
-        private ObjectAnimationsPair<Animated2D> activeShapeAnimations;
-        private ObjectAnimationsPair<GameField> gameFieldAnimations;
+        private ObjectAnimationsPair activeShapeAnimations;
+        private ObjectAnimationsPair gameFieldAnimations;
 
         public AnimationManager(Shape activeShape, GameField gameField) {
             this.gameField = gameField;
@@ -640,16 +640,16 @@ public class GameField extends Entity implements TileField, Controllable {
             gameFieldAnimations.performAnimations(interpolation);
         }
 
-        public void addActiveShapeAnimation(Animation<Animated2D> animation) {
+        public void addActiveShapeAnimation(Animation animation) {
             activeShapeAnimations.addAnimation(animation);
         }
 
-        public void addActiveShapeAnimation(Animation<Animated2D> animation,
+        public void addActiveShapeAnimation(Animation animation,
                 AnimationCallback animationEndCallback) {
             activeShapeAnimations.addAnimation(animation, animationEndCallback);
         }
 
-        public void addGameFieldAnimation(Animation<GameField> animation,
+        public void addGameFieldAnimation(Animation animation,
                 AnimationCallback animationEndCallback) {
             gameFieldAnimations.addAnimation(animation, animationEndCallback);
         }
@@ -657,7 +657,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
     private static class ObjectAnimationsPair<AnimatedObject> {
         private AnimatedObject object;
-        private LinkedList<AnimationCallbackPair<AnimatedObject>>
+        private LinkedList<AnimationCallbackPair>
                 activeAnimations = new LinkedList<>();
         private GameField gameField;
 
@@ -668,13 +668,13 @@ public class GameField extends Entity implements TileField, Controllable {
         }
 
         public void tick() {
-            Iterator<AnimationCallbackPair<AnimatedObject>> animationsIterator
+            Iterator<AnimationCallbackPair> animationsIterator
                     = activeAnimations.iterator();
-            List<AnimationCallbackPair<AnimatedObject>> finishedAnimations = null;
+            List<AnimationCallbackPair> finishedAnimations = null;
             while (animationsIterator.hasNext()) {
-                AnimationCallbackPair<AnimatedObject> pair
+                AnimationCallbackPair pair
                         = animationsIterator.next();
-                Animation<AnimatedObject> animation = pair.getAnimation();
+                Animation animation = pair.getAnimation();
                 animation.tick();
                 if (animation.finished()) {
                     finishedAnimations = new ArrayList<>();
@@ -683,44 +683,44 @@ public class GameField extends Entity implements TileField, Controllable {
                 }
             }
             if (finishedAnimations != null) {
-                for (AnimationCallbackPair<AnimatedObject> pair : finishedAnimations) {
+                for (AnimationCallbackPair pair : finishedAnimations) {
                     pair.triggerCallback(gameField);
                 }
             }
         }
 
         public void performAnimations(double interpolation) {
-            for (AnimationCallbackPair<AnimatedObject> animation : activeAnimations) {
-                animation.getAnimation().perform(object, interpolation);
+            for (AnimationCallbackPair animation : activeAnimations) {
+                animation.getAnimation().perform(interpolation);
             }
         }
 
-        public void addAnimation(Animation<AnimatedObject> animation) {
-            activeAnimations.add(new AnimationCallbackPair<>(animation));
+        public void addAnimation(Animation animation) {
+            activeAnimations.add(new AnimationCallbackPair(animation));
         }
 
-        public void addAnimation(Animation<AnimatedObject> animation,
+        public void addAnimation(Animation animation,
                 AnimationCallback animationEndCallBack) {
-            activeAnimations.add(new AnimationCallbackPair<>(
+            activeAnimations.add(new AnimationCallbackPair(
                     animation, animationEndCallBack));
         }
     }
 
-    private static class AnimationCallbackPair<AnimatedObject> {
-        private Animation<AnimatedObject> animation;
+    private static class AnimationCallbackPair {
+        private Animation animation;
         private AnimationCallback callback;
 
-        public AnimationCallbackPair(Animation<AnimatedObject> animation) {
+        public AnimationCallbackPair(Animation animation) {
             this.animation = animation;
         }
 
-        public AnimationCallbackPair(Animation<AnimatedObject> animation,
+        public AnimationCallbackPair(Animation animation,
                 AnimationCallback callback) {
             this.animation = animation;
             this.callback = callback;
         }
 
-        public Animation<AnimatedObject> getAnimation() {
+        public Animation getAnimation() {
             return animation;
         }
 

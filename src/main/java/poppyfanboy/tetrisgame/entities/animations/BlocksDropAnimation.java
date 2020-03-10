@@ -9,12 +9,13 @@ import poppyfanboy.tetrisgame.entities.GameField;
 import poppyfanboy.tetrisgame.graphics.Animation;
 import poppyfanboy.tetrisgame.graphics.animation2D.AcceleratedMoveAnimation;
 
-public class BlocksDropAnimation implements Animation<GameField> {
+public class BlocksDropAnimation implements Animation {
+    private final GameField gameField;
     private List<AcceleratedMoveAnimation> blocksAnimations;
-    private List<Block> droppingBlocks;
 
-    public BlocksDropAnimation(Collection<Block> droppingBlocks) {
-        this.droppingBlocks = new LinkedList<>(droppingBlocks);
+    public BlocksDropAnimation(GameField gameField,
+            Collection<Block> droppingBlocks) {
+        this.gameField = gameField;
 
         blocksAnimations = new LinkedList<>();
         for (Block block : droppingBlocks) {
@@ -33,20 +34,15 @@ public class BlocksDropAnimation implements Animation<GameField> {
     }
 
     @Override
-    public void perform(GameField object, double interpolation) {
-        Iterator<AcceleratedMoveAnimation> animationsIterator
-                = blocksAnimations.iterator();
-        Iterator<Block> blocksIterator = droppingBlocks.iterator();
-        while (animationsIterator.hasNext()) {
-            AcceleratedMoveAnimation animation = animationsIterator.next();
-            Block block = blocksIterator.next();
-            animation.perform(block, interpolation);
+    public void perform(double interpolation) {
+        for (AcceleratedMoveAnimation animation : blocksAnimations) {
+            animation.perform(interpolation);
         }
     }
 
     @Override
-    public void perform(GameField object) {
-        perform(object, 0.0);
+    public void perform() {
+        perform(0.0);
     }
 
     @Override
@@ -60,19 +56,20 @@ public class BlocksDropAnimation implements Animation<GameField> {
     }
 
     @Override
-    public void finish(GameField object) {
-        Iterator<AcceleratedMoveAnimation> animationsIterator
-                = blocksAnimations.iterator();
-        Iterator<Block> blocksIterator = droppingBlocks.iterator();
-        while (animationsIterator.hasNext()) {
-            AcceleratedMoveAnimation animation = animationsIterator.next();
-            Block block = blocksIterator.next();
-            animation.finish(block);
+    public void finish() {
+        for (AcceleratedMoveAnimation animation : blocksAnimations) {
+            animation.finish();
         }
     }
 
     @Override
     public int timeLeft() {
-        return 0;
+        int maxTimeLeft = 0;
+        for (Animation  animation : blocksAnimations) {
+            if (animation.timeLeft() > maxTimeLeft) {
+                maxTimeLeft = animation.timeLeft();
+            }
+        }
+        return maxTimeLeft;
     }
 }
