@@ -33,10 +33,17 @@ public class Assets implements AutoCloseable {
     private EnumMap<BlockColor, BufferedImage[]> renderedGems
             = new EnumMap<>(BlockColor.class);
 
+    private final BufferedImage wallBlock;
+
     public Assets(int renderBlockWidth, int outputBlockWidth,
-            int lightingSamplesCount) {
+            int lightingSamplesCount) throws IOException {
+        final SpriteSheet spriteSheet
+                = new SpriteSheet(loadImage("/textures/sheet.png"));
+        wallBlock = spriteSheet.gridCrop(0, 0, 16, 16);
+
         this.renderBlockWidth = renderBlockWidth;
         this.lightingSamplesCount = lightingSamplesCount;
+
         double step = 2 * Math.PI / lightingSamplesCount;
         for (BlockColor color : BlockColor.values()) {
             BufferedImage[] sprites
@@ -83,6 +90,10 @@ public class Assets implements AutoCloseable {
         return lightingSamplesCount;
     }
 
+    public BufferedImage getWallBlock() {
+        return wallBlock;
+    }
+
     @Override
     public void close() {
         // dispose the resources
@@ -96,8 +107,9 @@ public class Assets implements AutoCloseable {
                 BufferedImage.TYPE_INT_ARGB_PRE);
 
         DoubleVector[] normalizedContour = {
-                DoubleVector.dVect(0, 0.25), DoubleVector.dVect(0.25, 0), DoubleVector.dVect(0.75, 0),
-                DoubleVector.dVect(1, 0.25), DoubleVector.dVect(1, 0.75), DoubleVector.dVect(0.75, 1),
+                DoubleVector.dVect(0, 0.25), DoubleVector.dVect(0.25, 0),
+                DoubleVector.dVect(0.75, 0), DoubleVector.dVect(1, 0.25),
+                DoubleVector.dVect(1, 0.75), DoubleVector.dVect(0.75, 1),
                 DoubleVector.dVect(0.25, 1), DoubleVector.dVect(0, 0.75)
         };
         DoubleVector[] outerContour = getPolygon(renderWidth, renderHeight,
@@ -114,8 +126,8 @@ public class Assets implements AutoCloseable {
         // base polygon
         Graphics2D g2d = block.createGraphics();
         g2d.setColor(blockColor.getColor());
-        g2d.fillPolygon(DoubleVector.getIntX(outerContour), DoubleVector.getIntY(outerContour),
-                outerContour.length);
+        g2d.fillPolygon(DoubleVector.getIntX(outerContour),
+                DoubleVector.getIntY(outerContour), outerContour.length);
 
         DoubleVector vectorToLight
                 = new DoubleVector(6, 4).normalize();
@@ -171,14 +183,14 @@ public class Assets implements AutoCloseable {
         // inner polygon
         g2d.setColor(blockColor.getColor());
         g2d.setStroke(new BasicStroke(1));
-        g2d.fillPolygon(DoubleVector.getIntX(innerContour), DoubleVector.getIntY(innerContour),
-                innerContour.length);
+        g2d.fillPolygon(DoubleVector.getIntX(innerContour),
+                DoubleVector.getIntY(innerContour), innerContour.length);
 
         // inner stroke
         g2d.setStroke(new BasicStroke((float) (renderWidth * strokeScale)));
         g2d.setColor(blockColor.setSaturation(0.01F));
-        g2d.drawPolygon(DoubleVector.getIntX(innerContour), DoubleVector.getIntY(innerContour),
-                outerContour.length);
+        g2d.drawPolygon(DoubleVector.getIntX(innerContour),
+                DoubleVector.getIntY(innerContour), outerContour.length);
 
         BufferedImage resizedBlock = new BufferedImage(width, height,
                 BufferedImage.TYPE_INT_ARGB_PRE);

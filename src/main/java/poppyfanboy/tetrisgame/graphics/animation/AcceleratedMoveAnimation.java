@@ -3,7 +3,7 @@ package poppyfanboy.tetrisgame.graphics.animation;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 
 public class AcceleratedMoveAnimation implements Animation {
-    private static final double ACCELERATION = 0.1;
+    private static final double ACCELERATION = 0.25;
 
     private final DoubleVector startCoords, endCoords;
     // traversed distance at the current tick

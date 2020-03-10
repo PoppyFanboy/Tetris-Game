@@ -4,6 +4,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferStrategy;
 
+import java.io.IOException;
 import poppyfanboy.tetrisgame.graphics.Assets;
 import poppyfanboy.tetrisgame.graphics.Display;
 import poppyfanboy.tetrisgame.input.KeyManager;
@@ -80,7 +81,7 @@ public class Game implements Runnable {
     }
 
     // initialize the graphics, load the assets, create the game states
-    private void init() {
+    private void init() throws IOException {
         display = new Display(title, width, height);
         display.getFrame().addKeyListener(keyManager);
         assets = new Assets(128, 32, 8);
@@ -97,8 +98,15 @@ public class Game implements Runnable {
      *  2. render everything to the screen
      *  3. go to step 1
      */
+    @Override
     public void run() {
-        init();
+        try {
+            init();
+        } catch (IOException ex) {
+            stop();
+            ex.printStackTrace();
+            return;
+        }
         // next time to update the game
         long nextGameTick = System.nanoTime();
 
