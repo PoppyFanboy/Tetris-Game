@@ -63,6 +63,7 @@ class AnimationManager {
                     = animations.get(animationType);
             animatedObject.tick();
             if (animatedObject.finished()) {
+                animatedObject.perform();
                 animationsIterator.remove();
                 if (finishedAnimations == null) {
                     finishedAnimations = new ArrayList<>();
@@ -108,6 +109,7 @@ class AnimationManager {
                         = animatedObjectsIterator.next();
                 animatedObject.tick();
                 if (animatedObject.finished()) {
+                    animatedObject.perform();
                     animatedObjectsIterator.remove();
                 }
             }
