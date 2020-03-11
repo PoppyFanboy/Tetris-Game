@@ -20,6 +20,10 @@ public final class AnimatedObject<T> {
         this.object = object;
     }
 
+    public Animation<T> getAnimation() {
+        return animation;
+    }
+
     public void tick() {
         if (!isFinished) {
             duration++;
@@ -28,8 +32,10 @@ public final class AnimatedObject<T> {
         }
         if (animation.isFinished(duration)) {
             isFinished = true;
-            for (Callback callback : callbacks) {
-                callback.trigger();
+            if (callbacks != null) {
+                for (Callback callback : callbacks) {
+                    callback.trigger();
+                }
             }
         }
     }

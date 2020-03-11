@@ -148,72 +148,33 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         return shapeType;
     }
 
-    /**
-     * Moves the shape down so that its Y tile coordinate would match
-     * the actual Y coordinate on the screen.
-     */
-    /*public void addDropAnimation(int duration) {
+    public HVLinearAnimation createDropAnimation(int duration) {
         final int blockWidth = gameState.getBlockWidth();
-        dropAnimation = HVLinearAnimation.getVerticalAnimation(this,
-                coords.getY(), tileCoords.getY() * blockWidth,
-                duration, blockWidth);
+        return HVLinearAnimation.getVerticalAnimation(coords.getY(),
+                tileCoords.getY() * blockWidth, duration, blockWidth);
     }
 
-    public HVLinearAnimation getDropAnimation() {
-        return dropAnimation;
-    }
-
-    public void addUserControlAnimation(int duration) {
+    public HVLinearAnimation createUserControlAnimation(int duration) {
         final int blockWidth = gameState.getBlockWidth();
-        userControlAnimation = HVLinearAnimation.getHorizontalAnimation(
-                this, coords.getX(), tileCoords.getX() * blockWidth,
-                duration, blockWidth);
+        return HVLinearAnimation.getHorizontalAnimation(coords.getX(),
+                tileCoords.getX() * blockWidth, duration, blockWidth);
     }
 
-    public void addRotationAnimation(Rotation rotationDirection,
+    public RotateAnimation createRotationAnimation(Rotation rotationDirection,
             int duration) {
-        Rotation oldRotation
-                = this.rotation.add(rotationDirection.inverse());
+        rotationAngle = Rotation.normalizeAngle(rotationAngle);
+        double newRotationAngle = rotationAngle
+                + (rotationDirection == Rotation.RIGHT ? Math.PI / 2 : -Math.PI / 2);
+        return new RotateAnimation(rotationAngle,
+                newRotationAngle, duration, Math.PI / 2);
 
-        boolean isClockwise = rotationDirection == Rotation.RIGHT;
-        double newRotationAngle;
-
-        if (rotateAnimation == null) {
-            rotationAngle = oldRotation.getAngle();
-            newRotationAngle = rotationAngle
-                    + (isClockwise ? Math.PI / 2 : -Math.PI / 2);
-        } else {
-            if (rotateAnimation.isClockwise() != isClockwise) {
-                double angleShift = Rotation.normalizeAngle(
-                        oldRotation.add(rotationDirection).getAngle()
-                                - rotationAngle);
-                if (!isClockwise && angleShift > 0) {
-                    angleShift -= 2 * Math.PI;
-                }
-                if (isClockwise && angleShift < 0) {
-                    angleShift += 2 * Math.PI;
-                }
-                newRotationAngle = rotationAngle + angleShift;
-            } else {
-                newRotationAngle
-                        = rotateAnimation.getEndAngle()
-                        + (isClockwise ? Math.PI / 2 : -Math.PI / 2);
-            }
-        }
-        rotateAnimation = new RotateAnimation(this, rotationAngle,
-                newRotationAngle, duration, Math.PI / 2, isClockwise);
     }
 
-    public void addMovementAnimation(int duration) {
-        // interrupt any running HV movement animations
-        dropAnimation = null;
-        userControlAnimation = null;
-
+    public MoveAnimation createMovementAnimation(int duration) {
         final int blockWidth = gameState.getBlockWidth();
-        moveAnimation = new MoveAnimation(this, coords,
-                tileCoords.times(blockWidth).toDouble(), duration,
-                blockWidth);
-    }*/
+        return new MoveAnimation(coords,
+                tileCoords.times(blockWidth).toDouble(), duration, blockWidth);
+    }
 
     @Override
     public IntVector getTileCoords() {

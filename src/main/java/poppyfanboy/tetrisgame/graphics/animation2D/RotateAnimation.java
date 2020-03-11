@@ -9,7 +9,6 @@ import static java.lang.Math.max;
 public class RotateAnimation extends Animation<Animated2D> {
     private final double startAngle, endAngle;
     private final int duration;
-    private boolean clockwise;
 
     /**
      * {@code defaultAngle} is the default angle at which the
@@ -17,12 +16,11 @@ public class RotateAnimation extends Animation<Animated2D> {
      * class constructor.
      */
     public RotateAnimation(double startAngle, double endAngle,
-            int duration, double defaultAngle, boolean clockwise) {
+            int duration, double defaultAngle) {
         double progress = abs(endAngle - startAngle) / defaultAngle;
         this.duration = (int) max((min(progress, 1.0) * duration), 1);
         this.startAngle = startAngle;
         this.endAngle = endAngle;
-        this.clockwise = clockwise;
     }
 
     @Override
@@ -49,9 +47,5 @@ public class RotateAnimation extends Animation<Animated2D> {
 
     public double getEndAngle() {
         return endAngle;
-    }
-
-    public boolean isClockwise() {
-        return clockwise;
     }
 }
