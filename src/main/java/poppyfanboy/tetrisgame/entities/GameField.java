@@ -2,21 +2,24 @@ package poppyfanboy.tetrisgame.entities;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Queue;
 import java.util.Random;
 import java.util.TreeMap;
 
 import poppyfanboy.tetrisgame.Game;
-import poppyfanboy.tetrisgame.entities.animations.BlocksBreakAnimation;
-import poppyfanboy.tetrisgame.entities.animations.BlocksDropAnimation;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
+import poppyfanboy.tetrisgame.graphics.AnimatedObject;
 import poppyfanboy.tetrisgame.graphics.Animation;
 import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 import poppyfanboy.tetrisgame.graphics.animation2D.HVLinearAnimation;
@@ -49,13 +52,13 @@ import static poppyfanboy.tetrisgame.util.IntVector.iVect;
  *  - second "difficult" (T-spin or tetris) lines clear in a row(B2B)
  *          => 12 points
  */
-public class GameField extends Entity implements TileField, Controllable {
+public class GameField extends Entity implements TileField, Controllable, AnimatedObject.CallbackHandler {
     public static int DEFAULT_WIDTH = 10, DEFAULT_HEIGHT = 20;
     public static IntVector SPAWN_COORDINATES = iVect(2, 0);
 
     private GameState gameState;
     private EnumMap<InputKey, KeyState> lastInputs;
-    private AnimationManager animationManager= new AnimationManager(this);
+    private AnimationManager animationManager= new AnimationManager();
 
     // graphics
     private Entity parentEntity;
@@ -82,9 +85,10 @@ public class GameField extends Entity implements TileField, Controllable {
 
     private GameFieldState state = STOPPED;
 
-    private ArrayList<Block> removedBlocks = new ArrayList<>();
-    private ArrayList<Block> droppedBlocks = new ArrayList<>();
-    private ArrayList<IntVector> droppedBlocksOldKeys = new ArrayList<>();
+    // these collections are made unmodifiable
+    private List<Block> brokenBlocks = Collections.emptyList();
+    private List<Block> droppedBlocks = Collections.emptyList();
+    private List<IntVector> droppedBlocksOldKeys = Collections.emptyList();
 
     /**
      * Creates an empty instance of a game field.
@@ -128,6 +132,32 @@ public class GameField extends Entity implements TileField, Controllable {
     }
 
     /**
+     * In case the game field is in the state of breaking the blocks from
+     * the filled lines (playing the animation of breaking them),
+     * returns the blocks that are being broken. Otherwise returns an
+     * empty collection.
+     */
+    public List<Block> getBrokenBlocks() {
+        if (state == CLEARING_FILLED_LINES) {
+            return brokenBlocks;
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * The same thing as {@link GameField#getBrokenBlocks()}, but for
+     * the state of blocks dropping above the cleared lines.
+     */
+    public List<Block> getDroppingBlocks() {
+        if (state == DROPPING_BLOCKS) {
+            return droppedBlocks;
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
+    /**
      * Try to spawn the specified shape on a game field.
      *
      * This method can fail in case the inserted shape overlaps some
@@ -141,7 +171,6 @@ public class GameField extends Entity implements TileField, Controllable {
         }
         activeShape = new Shape(gameState, shapeType, rotation,
                 tileCoords, blockColors, this);
-        animationManager.setActiveShape(activeShape);
         return true;
     }
 
@@ -166,13 +195,13 @@ public class GameField extends Entity implements TileField, Controllable {
 
         // line indices are sorted from the top to the bottom
         ArrayList<Integer> clearedLinesIndices = new ArrayList<>();
-        removedBlocks = new ArrayList<>();
+        brokenBlocks = new ArrayList<>();
         // current same-row-blocks-streak
         ArrayList<Block> currentRowBlocks = new ArrayList<>();
         for (Block block : removalCandidates) {
             if (currentRow != block.getTileCoords().getY()) {
                 if (currentRowBlocks.size() == width) {
-                    removedBlocks.addAll(currentRowBlocks);
+                    brokenBlocks.addAll(currentRowBlocks);
                     clearedLinesIndices.add(currentRow);
                 }
                 currentRowBlocks.clear();
@@ -184,9 +213,10 @@ public class GameField extends Entity implements TileField, Controllable {
         }
         // the last row
         if (currentRowBlocks.size() == width) {
-            removedBlocks.addAll(currentRowBlocks);
+            brokenBlocks.addAll(currentRowBlocks);
             clearedLinesIndices.add(currentRow);
         }
+        brokenBlocks = Collections.unmodifiableList(brokenBlocks);
 
         // move down rows that were above the cleared rows
         if (clearedLinesIndices.size() != 0) {
@@ -196,7 +226,7 @@ public class GameField extends Entity implements TileField, Controllable {
                     new IntVector(0, 0), true,
                     new IntVector(width - 1, bottomLine), true).values());
             // these has not yet been removed from the fallenBlocks mapping
-            droppedBlocks.removeAll(removedBlocks);
+            droppedBlocks.removeAll(brokenBlocks);
 
             int removedLinesLeft = clearedLinesIndices.size();
             final int removedLinesCount = clearedLinesIndices.size();
@@ -219,71 +249,68 @@ public class GameField extends Entity implements TileField, Controllable {
                 block.tileShift(iVect(0, removedLinesLeft));
             }
         }
+        droppedBlocks = Collections.unmodifiableList(droppedBlocks);
+        droppedBlocksOldKeys
+                = Collections.unmodifiableList(droppedBlocksOldKeys);
     }
 
-    // called after the active shape is locked
-    private static void breakBlocks(GameField gameField) {
-        // change the game field state,
-        // in case there are filled rows, start blocks break animation,
-        // otherwise spawn a new shape
+    /**
+     * Changes the state of the game state. Ideally this method should
+     * have a some kind of graph of states with all possible transitions
+     * between them, thus preventing any illegal transitions. For now
+     * this method relies on the correctness of the calling code.
+     */
+    @Override
+    public void handleAnimationEnd(String newState) {
+        switch (newState) {
+            case "CLEARING_FILLED_LINES":
+                state = CLEARING_FILLED_LINES;
+                final int startY = activeShape.getTileCoords().getY();
+                // lock the active shape
+                for (Block block : activeShape.getBlocks(this)) {
+                    fallenBlocks.put(block.getTileCoords(), block);
+                }
+                activeShape = null;
+                removeFilledRows(startY, startY + 3);
 
-        Shape activeShape = gameField.activeShape;
-        final int startY = activeShape.getTileCoords().getY();
-        // lock the active shape
-        for (Block block : activeShape.getBlocks(gameField)) {
-            gameField.fallenBlocks.put(block.getTileCoords(), block);
+                for (Block block : brokenBlocks) {
+                    animationManager.addBlockAnimation(block, BlockAnimation.BREAK,
+                        block.createBlockBreakAnimation(blockBreakDuration),
+                        this, "DROPPING_BLOCKS");
+                }
+                if (brokenBlocks.isEmpty()) {
+                    handleAnimationEnd("SHAPE_SPAWN_READY");
+                }
+                break;
+
+            case "DROPPING_BLOCKS":
+                state = DROPPING_BLOCKS;
+                for (Block block : brokenBlocks) {
+                    fallenBlocks.remove(block.getTileCoords());
+                }
+                brokenBlocks = Collections.emptyList();
+
+                for (Block block : droppedBlocks) {
+                    animationManager.addBlockAnimation(block, BlockAnimation.DROP,
+                            block.createDropAnimation(), this,
+                            "SHAPE_SPAWN_READY");
+                }
+                for (int i = droppedBlocksOldKeys.size() - 1; i >= 0; i--) {
+                    Block block = droppedBlocks.get(i);
+                    fallenBlocks.remove(droppedBlocksOldKeys.get(i));
+                    fallenBlocks.put(block.getTileCoords(), block);
+                }
+                if (droppedBlocks.isEmpty()) {
+                    handleAnimationEnd("SHAPE_SPAWN_READY");
+                }
+                break;
+
+            case "SHAPE_SPAWN_READY":
+                state = SHAPE_SPAWN_READY;
+                droppedBlocks = Collections.emptyList();
+                droppedBlocksOldKeys = Collections.emptyList();
+                break;
         }
-        gameField.activeShape = null;
-
-
-        gameField.removeFilledRows(startY, startY + 3);
-        if (!gameField.removedBlocks.isEmpty()) {
-            gameField.animationManager.addGameFieldAnimation(
-                    new BlocksBreakAnimation(gameField,
-                            gameField.removedBlocks, gameField.blockBreakDuration),
-                    GameField::dropBlocks);
-            gameField.state = CLEARING_FILLED_LINES;
-        } else {
-            spawnNewShape(gameField);
-        }
-    }
-
-    // called after the blocks from filled lines are removed
-    private static void dropBlocks(GameField gameField) {
-        // change the game field state, remove disappeared blocks from
-        // the set of fallen blocks, start blocks drop animation
-
-        gameField.state = DROPPING_BLOCKS;
-
-        for (Block block : gameField.removedBlocks) {
-            gameField.fallenBlocks.remove(block.getTileCoords());
-        }
-        gameField.removedBlocks.clear();
-
-        if (!gameField.droppedBlocks.isEmpty()) {
-            gameField.animationManager.addGameFieldAnimation(
-                    new BlocksDropAnimation(gameField, gameField.droppedBlocks),
-                    GameField::spawnNewShape);
-
-            // update the mappings in the fallenBlocks mapping
-            // (make sure to update the blocks from the bottom to the
-            // top, otherwise you may override some present blocks'
-            // coordinates)
-            for (int i = gameField.droppedBlocksOldKeys.size() - 1; i >= 0; i--) {
-                Block block = gameField.droppedBlocks.get(i);
-                gameField.fallenBlocks.remove(gameField.droppedBlocksOldKeys.get(i));
-                gameField.fallenBlocks.put(block.getTileCoords(), block);
-            }
-        } else {
-            spawnNewShape(gameField);
-        }
-    }
-
-    // called after the filled lines have been removed
-    private static void spawnNewShape(GameField gameField) {
-        gameField.state = SHAPE_SPAWN_READY;
-        gameField.droppedBlocks.clear();
-        gameField.droppedBlocksOldKeys.clear();
     }
 
     @Override
@@ -365,7 +392,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
     @Override
     public void render(Graphics2D g, double interpolation) {
-        animationManager.gameFieldAnimations.performAnimations(interpolation);
+        animationManager.perform(interpolation);
 
         Transform globalTransform = getGlobalTransform();
         DoubleVector coords
@@ -412,11 +439,11 @@ public class GameField extends Entity implements TileField, Controllable {
             block.tick();
         }
 
-        if (state.shapeFalling()) {
+        /*if (state.shapeFalling()) {
             lastDropCounter++;
-        }
+        }*/
 
-        if (state == SHAPE_WALL_KICKED) {
+        /*if (state == SHAPE_WALL_KICKED) {
             if (activeShape.getTimeTillAnimationFinishes() == 0) {
                 state = SHAPE_SOFT_DROPPING;
                 if (lastInputs != null) {
@@ -429,9 +456,9 @@ public class GameField extends Entity implements TileField, Controllable {
                 }
                 tryDropActiveShape();
             }
-        }
+        }*/
 
-        if (lastDropCounter >= softDropDuration
+        /*if (lastDropCounter >= softDropDuration
                 && state == SHAPE_SOFT_DROPPING
                 || lastDropCounter >= forcedDropDuration
                 && state == SHAPE_FORCED_DROPPING) {
@@ -462,10 +489,10 @@ public class GameField extends Entity implements TileField, Controllable {
                     = Shape.generateColorsArray(randomType, randomColor);
             spawnNewActiveShape(randomType, SPAWN_COORDINATES,
                     Rotation.INITIAL, colors);
-        }
+        }*/
     }
 
-    private void tryDropActiveShape() {
+    /*private void tryDropActiveShape() {
         if (Shape.fits(activeShape, activeShape.getShapeType(),
                 activeShape.getTileCoords().add(iVect(0, 1)),
                 activeShape.getRotation(), this)) {
@@ -478,12 +505,13 @@ public class GameField extends Entity implements TileField, Controllable {
         } else {
             state = SHAPE_FELL;
         }
-    }
+    }*/
 
     @Override
     public void control(EnumMap<InputKey, KeyState> inputs) {
         lastInputs = inputs;
 
+        final int blockWidth = gameState.getBlockWidth();
         int xShift = 0;
         Rotation rotationDirection = Rotation.INITIAL;
 
@@ -491,7 +519,7 @@ public class GameField extends Entity implements TileField, Controllable {
             if (key.getValue() == KeyState.PRESSED) {
                 switch (key.getKey()) {
                     case ARROW_DOWN:
-                        if (!state.shapeFalling()) {
+                        /*if (!state.shapeFalling()) {
                             break;
                         }
                         if (state == SHAPE_SOFT_DROPPING) {
@@ -504,9 +532,8 @@ public class GameField extends Entity implements TileField, Controllable {
                                 activeShape.getDropAnimation();
                         if (currentDropAnimation != null
                                 && !currentDropAnimation.finished()) {
-                            currentDropAnimation
-                                    .changeDuration(forcedDropDuration);
-                        }
+                            currentDropAnimation = currentDropAnimation.changeDuration(forcedDropDuration, blockWidth);
+                        }*/
                         break;
                     case ARROW_LEFT:
                         xShift--;
@@ -527,7 +554,7 @@ public class GameField extends Entity implements TileField, Controllable {
             if (key.getValue() == KeyState.RELEASED) {
                 switch (key.getKey()) {
                     case ARROW_DOWN:
-                        if (!state.shapeFalling()) {
+                        /*if (!state.shapeFalling()) {
                             break;
                         }
                         if (state == SHAPE_FORCED_DROPPING) {
@@ -542,7 +569,7 @@ public class GameField extends Entity implements TileField, Controllable {
                                 && !currentDropAnimation.finished()) {
                             currentDropAnimation
                                     .changeDuration(softDropDuration);
-                        }
+                        }*/
                         break;
                 }
             }
@@ -553,19 +580,19 @@ public class GameField extends Entity implements TileField, Controllable {
         // one has not yet spawned, would change the initial position
         // of a newly spawned shape
         if (xShift != 0 && state.shapeFalling()) {
-            if (activeShape != null && Shape.fits(activeShape,
+            /*if (activeShape != null && Shape.fits(activeShape,
                     activeShape.getShapeType(),
                     activeShape.getTileCoords().add(iVect(xShift, 0)),
                     activeShape.getRotation(), this)) {
                 activeShape.tileShift(iVect(xShift, 0));
                 activeShape.addUserControlAnimation(
                         userControlAnimationDuration);
-            }
+            }*/
         }
         if (activeShape != null && state.shapeFalling()
                 && (rotationDirection.equals(Rotation.LEFT)
                 || rotationDirection.equals(Rotation.RIGHT))) {
-            Rotation newRotation
+            /*Rotation newRotation
                     = activeShape.getRotation().add(rotationDirection);
             if (Shape.fits(activeShape, activeShape.getShapeType(),
                     activeShape.getTileCoords(), newRotation, this)) {
@@ -592,7 +619,7 @@ public class GameField extends Entity implements TileField, Controllable {
                         break;
                     }
                 }
-            }
+            }*/
         }
     }
 
@@ -610,130 +637,153 @@ public class GameField extends Entity implements TileField, Controllable {
         }
     }
 
-    private static class AnimationManager {
-        private GameField gameField;
-        private ObjectAnimationsPair activeShapeAnimations;
-        private ObjectAnimationsPair gameFieldAnimations;
-
-        public AnimationManager(Shape activeShape, GameField gameField) {
-            this.gameField = gameField;
-            activeShapeAnimations = new ObjectAnimationsPair<>(activeShape, gameField);
-            gameFieldAnimations = new ObjectAnimationsPair<>(gameField, gameField);
-        }
-
-        public AnimationManager(GameField gameField) {
-            this.gameField = gameField;
-            gameFieldAnimations = new ObjectAnimationsPair<>(gameField, gameField);
-        }
-
-        public void setActiveShape(Shape newActiveShape) {
-            activeShapeAnimations = new ObjectAnimationsPair<>(newActiveShape, gameField);
-        }
-
-        public void tick() {
-            activeShapeAnimations.tick();
-            gameFieldAnimations.tick();
-        }
-
-        public void performAnimations(double interpolation) {
-            activeShapeAnimations.performAnimations(interpolation);
-            gameFieldAnimations.performAnimations(interpolation);
-        }
-
-        public void addActiveShapeAnimation(Animation animation) {
-            activeShapeAnimations.addAnimation(animation);
-        }
-
-        public void addActiveShapeAnimation(Animation animation,
-                AnimationCallback animationEndCallback) {
-            activeShapeAnimations.addAnimation(animation, animationEndCallback);
-        }
-
-        public void addGameFieldAnimation(Animation animation,
-                AnimationCallback animationEndCallback) {
-            gameFieldAnimations.addAnimation(animation, animationEndCallback);
-        }
+    public enum ActiveShapeAnimation {
+        SOFT_DROP, FORCED_DROP, WALL_KICK, ROTATION
+    }
+    public enum BlockAnimation {
+        BREAK, DROP
     }
 
-    private static class ObjectAnimationsPair<AnimatedObject> {
-        private AnimatedObject object;
-        private LinkedList<AnimationCallbackPair>
-                activeAnimations = new LinkedList<>();
-        private GameField gameField;
+    /**
+     * An object that manages the blocks / active shape animations.
+     */
+    private static class AnimationManager {
+        private EnumMap<ActiveShapeAnimation, AnimatedObject<Animated2D>>
+            activeShapeAnimations = new EnumMap<>(ActiveShapeAnimation.class);
+        private EnumMap<BlockAnimation, List<AnimatedObject<Animated2D>>>
+            blocksAnimations = new EnumMap<>(BlockAnimation.class);
 
-        public ObjectAnimationsPair(AnimatedObject object,
-                GameField gameField) {
-            this.object = object;
-            this.gameField = gameField;
+        // It might be the case that the callbacks access the animation
+        // manager and add new animations, thus mutating the collections
+        // while the animation manager is still iterating through the
+        // animations in the tick() method. This situation will cause
+        // a concurrent modification exception. To avoid this, while
+        // the animation manager is in the tick() method all the commands
+        // are temporarily addressed to these buffer data structures.
+        // At the end of the tick method all queued animations are added
+        // to the animation manager properly.
+
+        // The problem with this thing is that it can only handle a
+        // single animation addition of the same type, any subsequent
+        // additions will override it. Another problem is that you can't
+        // interrupt any animations while the animation manager is in the
+        // tick() method, and I can't think of a simple solution for this
+        // problem.
+
+        private boolean currentlyTicked = false;
+        private EnumMap<ActiveShapeAnimation, AnimatedObject<Animated2D>>
+                queuedActiveShapeAnimations = new EnumMap<>(ActiveShapeAnimation.class);
+        private EnumMap<BlockAnimation, List<AnimatedObject<Animated2D>>>
+                queuedBlocksAnimations = new EnumMap<>(BlockAnimation.class);
+
+        public AnimationManager() {
+            for (BlockAnimation animation : BlockAnimation.values()) {
+                blocksAnimations.put(animation, new LinkedList<>());
+                queuedBlocksAnimations.put(animation, new LinkedList<>());
+            }
         }
 
         public void tick() {
-            Iterator<AnimationCallbackPair> animationsIterator
-                    = activeAnimations.iterator();
-            List<AnimationCallbackPair> finishedAnimations = null;
-            while (animationsIterator.hasNext()) {
-                AnimationCallbackPair pair
-                        = animationsIterator.next();
-                Animation animation = pair.getAnimation();
+            currentlyTicked = true;
+            // iterate through the animations and remove the finished ones
+            Iterator<AnimatedObject<Animated2D>> iterator
+                    = activeShapeAnimations.values().iterator();
+            while (iterator.hasNext()) {
+                AnimatedObject<Animated2D> animation = iterator.next();
                 animation.tick();
                 if (animation.finished()) {
-                    finishedAnimations = new ArrayList<>();
-                    finishedAnimations.add(pair);
-                    animationsIterator.remove();
+                    iterator.remove();
                 }
             }
-            if (finishedAnimations != null) {
-                for (AnimationCallbackPair pair : finishedAnimations) {
-                    pair.triggerCallback(gameField);
+            for (BlockAnimation animationType : BlockAnimation.values()) {
+                iterator = blocksAnimations.get(animationType).iterator();
+                while (iterator.hasNext()) {
+                    AnimatedObject<Animated2D> animation = iterator.next();
+                    animation.tick();
+                    if (animation.finished()) {
+                        iterator.remove();
+                    }
+                }
+            }
+            currentlyTicked = false;
+            // add the animations from the queue that might occurred there
+            // as a result of animation-end callbacks
+            if (!queuedActiveShapeAnimations.isEmpty()) {
+                activeShapeAnimations.putAll(queuedActiveShapeAnimations);
+                queuedActiveShapeAnimations.clear();
+            }
+            for (BlockAnimation animation : BlockAnimation.values()) {
+                List<AnimatedObject<Animated2D>> queuedAnimations
+                        = queuedBlocksAnimations.get(animation);
+                if (!queuedAnimations.isEmpty()) {
+                    blocksAnimations.get(animation).addAll(queuedAnimations);
+                    queuedAnimations.clear();
                 }
             }
         }
 
-        public void performAnimations(double interpolation) {
-            for (AnimationCallbackPair animation : activeAnimations) {
-                animation.getAnimation().perform(interpolation);
+        public void perform(double interpolation) {
+            activeShapeAnimations.values().forEach(
+                    animation -> animation.perform(interpolation));
+            blocksAnimations.values().forEach(
+                    animationList -> animationList.forEach(
+                            animation -> animation.perform(interpolation)));
+        }
+
+        public void addActiveShapeAnimation(Shape shape,
+                ActiveShapeAnimation animationType,
+                Animation<Animated2D> animation) {
+            addActiveShapeAnimation(shape, animationType, animation, null, null);
+        }
+
+        public void addActiveShapeAnimation(Shape shape,
+                ActiveShapeAnimation animationType,
+                Animation<Animated2D> animation,
+                AnimatedObject.CallbackHandler callbackOnEnd,
+                String argument) {
+            AnimatedObject<Animated2D> newAnimation
+                    = new AnimatedObject<>(shape, animation);
+            if (callbackOnEnd != null) {
+                newAnimation.notifyOnEnd(callbackOnEnd, argument);
+            }
+            if (currentlyTicked) {
+                queuedActiveShapeAnimations.put(animationType, newAnimation);
+            } else {
+                activeShapeAnimations.put(animationType, newAnimation);
             }
         }
 
-        public void addAnimation(Animation animation) {
-            activeAnimations.add(new AnimationCallbackPair(animation));
+        public void addBlockAnimation(Block block,
+                BlockAnimation animationType,
+                Animation<Animated2D> animation) {
+            addBlockAnimation(block, animationType, animation, null, null);
         }
 
-        public void addAnimation(Animation animation,
-                AnimationCallback animationEndCallBack) {
-            activeAnimations.add(new AnimationCallbackPair(
-                    animation, animationEndCallBack));
-        }
-    }
-
-    private static class AnimationCallbackPair {
-        private Animation animation;
-        private AnimationCallback callback;
-
-        public AnimationCallbackPair(Animation animation) {
-            this.animation = animation;
-        }
-
-        public AnimationCallbackPair(Animation animation,
-                AnimationCallback callback) {
-            this.animation = animation;
-            this.callback = callback;
+        public void addBlockAnimation(Block block,
+                BlockAnimation animationType,
+                Animation<Animated2D> animation,
+                AnimatedObject.CallbackHandler callbackOnEnd,
+                String argument) {
+            AnimatedObject<Animated2D> newAnimation
+                    = new AnimatedObject<>(block, animation);
+            if (callbackOnEnd != null) {
+                newAnimation.notifyOnEnd(callbackOnEnd, argument);
+            }
+            if (currentlyTicked) {
+                queuedBlocksAnimations.get(animationType).add(newAnimation);
+            } else {
+                blocksAnimations.get(animationType).add(newAnimation);
+            }
         }
 
-        public Animation getAnimation() {
-            return animation;
+        // this method is not yet callback-safe
+        public void interruptAnimation(ActiveShapeAnimation animationType) {
+            activeShapeAnimations.remove(animationType);
         }
 
-        public void addCallback(AnimationCallback callback) {
-            this.callback = callback;
+        // this method is not yet callback-safe
+        public void interruptAnimation(BlockAnimation animationType) {
+            blocksAnimations.get(animationType).clear();
         }
-
-        public void triggerCallback(GameField gameField) {
-            callback.call(gameField);
-        }
-    }
-
-    private interface AnimationCallback {
-        void call(GameField gameField);
     }
 }

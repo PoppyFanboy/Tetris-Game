@@ -66,12 +66,12 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
     public AcceleratedMoveAnimation createDropAnimation() {
         final int blockWidth = gameState.getBlockWidth();
 
-        return new AcceleratedMoveAnimation(this, coords,
+        return new AcceleratedMoveAnimation(coords,
                 tileCoords.times(blockWidth).toDouble(), 0.0);
     }
 
     public BlockBreakAnimation createBlockBreakAnimation(int duration) {
-        return new BlockBreakAnimation(this, rotationAngle, scale, duration);
+        return new BlockBreakAnimation(rotationAngle, scale, duration);
     }
 
     public void rotate(Rotation rotationDirection) {

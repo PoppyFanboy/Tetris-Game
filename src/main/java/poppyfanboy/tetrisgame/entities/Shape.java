@@ -44,10 +44,10 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
     // each new animation cancels the previous one (the exception is
     // two consecutive rotation animations in the same direction),
     // thus there is no need for the list of present animations so far
-    private HVLinearAnimation userControlAnimation;
+    /*private HVLinearAnimation userControlAnimation;
     private HVLinearAnimation dropAnimation;
     private RotateAnimation rotateAnimation;
-    private MoveAnimation moveAnimation;
+    private MoveAnimation moveAnimation;*/
 
     /**
      * @param   blockColors colors of the solid blocks of the shape.
@@ -152,7 +152,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
      * Moves the shape down so that its Y tile coordinate would match
      * the actual Y coordinate on the screen.
      */
-    public void addDropAnimation(int duration) {
+    /*public void addDropAnimation(int duration) {
         final int blockWidth = gameState.getBlockWidth();
         dropAnimation = HVLinearAnimation.getVerticalAnimation(this,
                 coords.getY(), tileCoords.getY() * blockWidth,
@@ -213,7 +213,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         moveAnimation = new MoveAnimation(this, coords,
                 tileCoords.times(blockWidth).toDouble(), duration,
                 blockWidth);
-    }
+    }*/
 
     @Override
     public IntVector getTileCoords() {
@@ -247,7 +247,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public void tick() {
-        if (rotateAnimation != null && !rotateAnimation.finished()) {
+        /*if (rotateAnimation != null && !rotateAnimation.finished()) {
             rotateAnimation.tick();
             rotateAnimation.perform();
         }
@@ -263,7 +263,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         if (moveAnimation != null && !moveAnimation.finished()) {
             moveAnimation.tick();
             moveAnimation.perform();
-        }
+        }*/
         for (Block block : blocks) {
             block.tick();
         }
@@ -272,7 +272,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
     @Override
     public void render(Graphics2D g, double interpolation) {
         // interpolate shape position between the actual game ticks
-        if (rotateAnimation != null && !rotateAnimation.finished()) {
+        /*if (rotateAnimation != null && !rotateAnimation.finished()) {
             rotateAnimation.perform(interpolation);
         }
         if (dropAnimation != null && !dropAnimation.finished()) {
@@ -284,7 +284,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         }
         if (moveAnimation != null && !moveAnimation.finished()) {
             moveAnimation.perform(interpolation);
-        }
+        }*/
 
         for (Block block : blocks) {
             block.setOpacity(opacity);
@@ -375,7 +375,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         return scale;
     }
 
-    public int getTimeTillAnimationFinishes() {
+    /*public int getTimeTillAnimationFinishes() {
         return Math.max(
             rotateAnimation == null
                 ? 0
@@ -391,7 +391,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
                     moveAnimation == null
                         ? 0
                         : moveAnimation.timeLeft())));
-    }
+    }*/
 
     @Override
     public DoubleVector[] getConvexHull() {

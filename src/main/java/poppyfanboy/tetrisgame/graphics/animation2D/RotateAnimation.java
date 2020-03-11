@@ -6,12 +6,9 @@ import static java.lang.Math.abs;
 import static java.lang.Math.min;
 import static java.lang.Math.max;
 
-public class RotateAnimation implements Animation {
-    private final Animated2D object;
+public class RotateAnimation extends Animation<Animated2D> {
     private final double startAngle, endAngle;
     private final int duration;
-
-    private int currentDuration;
     private boolean clockwise;
 
     /**
@@ -19,15 +16,31 @@ public class RotateAnimation implements Animation {
      * entity is rotated. For more information see {@link MoveAnimation}
      * class constructor.
      */
-    public RotateAnimation(Animated2D object,
-            double startAngle, double endAngle,
+    public RotateAnimation(double startAngle, double endAngle,
             int duration, double defaultAngle, boolean clockwise) {
         double progress = abs(endAngle - startAngle) / defaultAngle;
         this.duration = (int) max((min(progress, 1.0) * duration), 1);
         this.startAngle = startAngle;
         this.endAngle = endAngle;
         this.clockwise = clockwise;
-        this.object = object;
+    }
+
+    @Override
+    public void perform(Animated2D object, int currentDuration,
+            double interpolation) {
+        double progress = (currentDuration + interpolation) / duration;
+        double angle = startAngle + (endAngle - startAngle) * progress;
+        object.setRotationAngle(angle);
+    }
+
+    @Override
+    public boolean isFinished(int currentDuration) {
+        return currentDuration >= duration;
+    }
+
+    @Override
+    public void finish(Animated2D object) {
+        object.setRotationAngle(endAngle);
     }
 
     public double getStartAngle() {
@@ -40,40 +53,5 @@ public class RotateAnimation implements Animation {
 
     public boolean isClockwise() {
         return clockwise;
-    }
-
-    @Override
-    public void tick() {
-        if (!finished()) {
-            currentDuration++;
-        }
-    }
-
-    @Override
-    public void perform(double interpolation) {
-        double progress = (currentDuration + interpolation) / duration;
-        double angle = startAngle + (endAngle - startAngle) * progress;
-        object.setRotationAngle(angle);
-    }
-
-    @Override
-    public void perform() {
-        perform(0.0);
-    }
-
-    @Override
-    public boolean finished() {
-        return currentDuration >= duration;
-    }
-
-    @Override
-    public int timeLeft() {
-        return Math.max(0, duration - currentDuration);
-    }
-
-    @Override
-    public void finish() {
-        currentDuration = duration;
-        perform();
     }
 }

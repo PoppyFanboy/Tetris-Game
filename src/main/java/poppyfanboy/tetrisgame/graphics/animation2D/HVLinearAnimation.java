@@ -1,30 +1,26 @@
 package poppyfanboy.tetrisgame.graphics.animation2D;
 
-import static java.lang.Math.min;
 import poppyfanboy.tetrisgame.graphics.Animation;
 import poppyfanboy.tetrisgame.util.DoubleVector;
+
+import static java.lang.Math.min;
 
 /**
  * An animation that either moves the object vertically without
  * changing the y coordinates or moves the object horizontally
  * not changing the x coordinate as well.
  */
-public class HVLinearAnimation implements Animation {
-    private final Animated2D object;
+public class HVLinearAnimation extends Animation<Animated2D> {
     private final double startCoords, endCoords;
-
     private int duration;
-    private int currentDuration;
     private boolean isHorizontal;
 
     /**
      * @param   isHorizontal {@code true} for the horizontal movement,
      *          {@code false} for the vertical movement.
      */
-    private HVLinearAnimation(Animated2D object,
-            double startCoords, double endCoords,
+    private HVLinearAnimation(double startCoords, double endCoords,
             int duration, double defaultShift, boolean isHorizontal) {
-        this.object = object;
         this.startCoords = startCoords;
         this.endCoords = endCoords;
         this.isHorizontal = isHorizontal;
@@ -32,24 +28,11 @@ public class HVLinearAnimation implements Animation {
         double distance = Math.abs(endCoords - startCoords);
         this.duration
                 = (int) (min(distance / defaultShift, 1.0) * duration);
-        currentDuration = 0;
-    }
-
-    public void changeDuration(int newDuration) {
-        currentDuration = (int) Math.round(
-                (1.0 * currentDuration / duration) * newDuration);
-        duration = newDuration;
     }
 
     @Override
-    public void tick() {
-        if (!finished()) {
-            currentDuration++;
-        }
-    }
-
-    @Override
-    public void perform(double interpolation) {
+    public void perform(Animated2D object, int currentDuration,
+            double interpolation) {
         double progress = (currentDuration + interpolation) / duration;
         double currCoords
                 = startCoords * (1 - progress) + endCoords * progress;
@@ -64,37 +47,38 @@ public class HVLinearAnimation implements Animation {
     }
 
     @Override
-    public void perform() {
-        perform(0.0);
-    }
-
-    @Override
-    public boolean finished() {
+    public boolean isFinished(int currentDuration) {
         return currentDuration >= duration;
     }
 
     @Override
-    public int timeLeft() {
-        return Math.max(0, duration - currentDuration);
+    public void finish(Animated2D object) {
+        if (isHorizontal) {
+            object.setCoords(
+                    new DoubleVector(endCoords, object.getCoords().getY()));
+        } else {
+            object.setCoords(
+                    new DoubleVector(object.getCoords().getX(), endCoords));
+        }
     }
 
-    @Override
-    public void finish() {
-        currentDuration = duration;
-        perform();
+    public HVLinearAnimation changeDuration(int newDuration,
+            double defaultShift) {
+        return new HVLinearAnimation(startCoords, endCoords, newDuration,
+                defaultShift, isHorizontal);
     }
 
-    public static HVLinearAnimation getHorizontalAnimation(Animated2D object,
+    public static HVLinearAnimation getHorizontalAnimation(
             double startCoords, double endCoords, int duration,
             double defaultShift) {
-        return new HVLinearAnimation(object, startCoords, endCoords,
+        return new HVLinearAnimation(startCoords, endCoords,
                 duration, defaultShift, true);
     }
 
-    public static HVLinearAnimation getVerticalAnimation(Animated2D object,
+    public static HVLinearAnimation getVerticalAnimation(
             double startCoords, double endCoords, int duration,
             double defaultShift) {
-        return new HVLinearAnimation(object, startCoords, endCoords,
+        return new HVLinearAnimation(startCoords, endCoords,
                 duration, defaultShift, false);
     }
 }
