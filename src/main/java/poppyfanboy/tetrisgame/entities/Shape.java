@@ -6,19 +6,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.graphics.animation2D.HVLinearAnimation;
 import poppyfanboy.tetrisgame.graphics.animation2D.MoveAnimation;
 import poppyfanboy.tetrisgame.graphics.animation2D.RotateAnimation;
+import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 import poppyfanboy.tetrisgame.util.IntVector;
-import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 import poppyfanboy.tetrisgame.util.Rotation;
 import poppyfanboy.tetrisgame.util.Transform;
-
-import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
-
-import static java.lang.Math.abs;
 
 /**
  * In a nutshell this is just a bunch of glued blocks, that can be rotated
@@ -39,15 +36,6 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
     private Entity parentEntity;
     private double opacity = 1.0;
     private double scale = 1.0;
-
-
-    // each new animation cancels the previous one (the exception is
-    // two consecutive rotation animations in the same direction),
-    // thus there is no need for the list of present animations so far
-    /*private HVLinearAnimation userControlAnimation;
-    private HVLinearAnimation dropAnimation;
-    private RotateAnimation rotateAnimation;
-    private MoveAnimation moveAnimation;*/
 
     /**
      * @param   blockColors colors of the solid blocks of the shape.
@@ -208,23 +196,6 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public void tick() {
-        /*if (rotateAnimation != null && !rotateAnimation.finished()) {
-            rotateAnimation.tick();
-            rotateAnimation.perform();
-        }
-        if (dropAnimation != null && !dropAnimation.finished()) {
-            dropAnimation.tick();
-            dropAnimation.perform();
-        }
-        if (userControlAnimation != null
-                && !userControlAnimation.finished()) {
-            userControlAnimation.tick();
-            userControlAnimation.perform();
-        }
-        if (moveAnimation != null && !moveAnimation.finished()) {
-            moveAnimation.tick();
-            moveAnimation.perform();
-        }*/
         for (Block block : blocks) {
             block.tick();
         }
@@ -232,33 +203,11 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public void render(Graphics2D g, double interpolation) {
-        // interpolate shape position between the actual game ticks
-        /*if (rotateAnimation != null && !rotateAnimation.finished()) {
-            rotateAnimation.perform(interpolation);
-        }
-        if (dropAnimation != null && !dropAnimation.finished()) {
-            dropAnimation.perform(interpolation);
-        }
-        if (userControlAnimation != null
-                && !userControlAnimation.finished()) {
-            userControlAnimation.perform(interpolation);
-        }
-        if (moveAnimation != null && !moveAnimation.finished()) {
-            moveAnimation.perform(interpolation);
-        }*/
-
         for (Block block : blocks) {
             block.setOpacity(opacity);
             block.setScale(scale);
             block.render(g, interpolation);
         }
-        // render convex hull
-        /*DoubleVector[] convexHull = this.getConvexHull();
-        g.setColor(BlockColor.BLUE.getColor());
-        g.setStroke(new BasicStroke(2));
-
-        g.drawPolygon(DoubleVector.getIntX(convexHull),
-            DoubleVector.getIntY(convexHull), convexHull.length);*/
     }
 
     @Override
@@ -335,24 +284,6 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
     public double getScale() {
         return scale;
     }
-
-    /*public int getTimeTillAnimationFinishes() {
-        return Math.max(
-            rotateAnimation == null
-                ? 0
-                : rotateAnimation.timeLeft(),
-            Math.max(
-                userControlAnimation == null
-                    ? 0
-                    : userControlAnimation.timeLeft(),
-                Math.max(
-                    dropAnimation == null
-                        ? 0
-                        : dropAnimation.timeLeft(),
-                    moveAnimation == null
-                        ? 0
-                        : moveAnimation.timeLeft())));
-    }*/
 
     @Override
     public DoubleVector[] getConvexHull() {

@@ -1,9 +1,12 @@
 package poppyfanboy.tetrisgame.entities;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+
 import poppyfanboy.tetrisgame.graphics.AnimatedObject;
 import poppyfanboy.tetrisgame.graphics.Animation;
 import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
@@ -15,80 +18,114 @@ enum BlockAnimation {
     BREAK, DROP
 }
 
+interface CallbackHandler {
+    void handleAnimationEnd(String argument);
+}
+
 /**
  * An object that manages the blocks / active shape animations.
  */
 class AnimationManager {
     private EnumMap<ActiveShapeAnimation, AnimatedObject<Animated2D>>
             activeShapeAnimations = new EnumMap<>(ActiveShapeAnimation.class);
+    private EnumMap<ActiveShapeAnimation, String>
+            activeShapeCallbackArguments = new EnumMap<>(ActiveShapeAnimation.class);
+
     private EnumMap<BlockAnimation, List<AnimatedObject<Animated2D>>>
             blocksAnimations = new EnumMap<>(BlockAnimation.class);
+    private EnumMap<BlockAnimation, String>
+            blocksCallbackArguments = new EnumMap<>(BlockAnimation.class);
 
-    // It might be the case that the callbacks access the animation
-    // manager and add new animations, thus mutating the collections
-    // while the animation manager is still iterating through the
-    // animations in the tick() method. This situation will cause
-    // a concurrent modification exception. To avoid this, while
-    // the animation manager is in the tick() method all the commands
-    // are temporarily addressed to these buffer data structures.
-    // At the end of the tick method all queued animations are added
-    // to the animation manager properly.
+    private final CallbackHandler handler;
 
-    // The problem with this thing is that it can only handle a
-    // single animation addition of the same type, any subsequent
-    // additions will override it. Another problem is that you can't
-    // interrupt any animations while the animation manager is in the
-    // tick() method, and I can't think of a simple solution for this
-    // problem.
-
-    private boolean currentlyTicked = false;
-    private EnumMap<ActiveShapeAnimation, AnimatedObject<Animated2D>>
-            queuedActiveShapeAnimations = new EnumMap<>(ActiveShapeAnimation.class);
-    private EnumMap<BlockAnimation, List<AnimatedObject<Animated2D>>>
-            queuedBlocksAnimations = new EnumMap<>(BlockAnimation.class);
-
-    public AnimationManager() {
-        for (BlockAnimation animation : BlockAnimation.values()) {
-            blocksAnimations.put(animation, new LinkedList<>());
-            queuedBlocksAnimations.put(animation, new LinkedList<>());
-        }
+    public AnimationManager(CallbackHandler handler) {
+        this.handler = handler;
     }
 
     public void tick() {
-        currentlyTicked = true;
-        // iterate through the animations and remove the finished ones
-        Iterator<AnimatedObject<Animated2D>> iterator
-                = activeShapeAnimations.values().iterator();
-        while (iterator.hasNext()) {
-            AnimatedObject<Animated2D> animation = iterator.next();
-            animation.tick();
-            if (animation.finished()) {
-                iterator.remove();
+        singleObjectAnimationTick(activeShapeAnimations,
+                activeShapeCallbackArguments, handler);
+        multipleObjectAnimationTick(blocksAnimations,
+                blocksCallbackArguments, handler);
+    }
+
+    // iterates through the animations, updates them, deletes the
+    // finished ones from the mapping and after that invokes the
+    // callbacks if there are any
+    private static <T extends Enum<T>> void singleObjectAnimationTick(
+            EnumMap<T, ? extends AnimatedObject<?>> animations,
+            EnumMap<T, String> callbackArguments, CallbackHandler handler) {
+        List<T> finishedAnimations = null;
+        Iterator<T> animationsIterator = animations.keySet().iterator();
+        while (animationsIterator.hasNext()) {
+            T animationType = animationsIterator.next();
+            AnimatedObject<?> animatedObject
+                    = animations.get(animationType);
+            animatedObject.tick();
+            if (animatedObject.finished()) {
+                animationsIterator.remove();
+                if (finishedAnimations == null) {
+                    finishedAnimations = new ArrayList<>();
+                }
+                finishedAnimations.add(animationType);
             }
         }
-        for (BlockAnimation animationType : BlockAnimation.values()) {
-            iterator = blocksAnimations.get(animationType).iterator();
-            while (iterator.hasNext()) {
-                AnimatedObject<Animated2D> animation = iterator.next();
-                animation.tick();
-                if (animation.finished()) {
-                    iterator.remove();
+        if (finishedAnimations != null) {
+            for (T animationType : finishedAnimations) {
+                if (callbackArguments.containsKey(animationType)) {
+                    // callback could (and actually does) mutate the
+                    // callbacks map, so you must first remove the old
+                    // value and only then trigger the callback
+                    String callbackArgument = callbackArguments.get(animationType);
+                    callbackArguments.remove(animationType);
+                    handler.handleAnimationEnd(callbackArgument);
                 }
             }
         }
-        currentlyTicked = false;
-        // add the animations from the queue that might occurred there
-        // as a result of animation-end callbacks
-        if (!queuedActiveShapeAnimations.isEmpty()) {
-            activeShapeAnimations.putAll(queuedActiveShapeAnimations);
-            queuedActiveShapeAnimations.clear();
+    }
+
+    // does the same thing, but the animation is considered to be finished
+    // only if all of the animation objects on the list are finished
+    // (passing an empty list does not count as a finished animation)
+    private static <AnimationType extends Enum<AnimationType>, T extends AnimatedObject<?>>
+            void multipleObjectAnimationTick(EnumMap<AnimationType,
+            List<T>> animations, EnumMap<AnimationType,
+            String> callbackArguments, CallbackHandler handler) {
+        List<AnimationType> finishedAnimations = null;
+        Iterator<AnimationType> animationsIterator = animations.keySet().iterator();
+        while (animationsIterator.hasNext()) {
+            AnimationType animationType = animationsIterator.next();
+            List<T> animatedObjects
+                    = animations.get(animationType);
+            if (animatedObjects.isEmpty()) {
+                animationsIterator.remove();
+                continue;
+            }
+            Iterator<T> animatedObjectsIterator
+                    = animatedObjects.iterator();
+            while (animatedObjectsIterator.hasNext()) {
+                AnimatedObject<?> animatedObject
+                        = animatedObjectsIterator.next();
+                animatedObject.tick();
+                if (animatedObject.finished()) {
+                    animatedObjectsIterator.remove();
+                }
+            }
+            if (animatedObjects.isEmpty()) {
+                if (finishedAnimations == null) {
+                    finishedAnimations = new ArrayList<>();
+                }
+                finishedAnimations.add(animationType);
+                animationsIterator.remove();
+            }
         }
-        for (BlockAnimation animation : BlockAnimation.values()) {
-            List<AnimatedObject<Animated2D>> queuedAnimations
-                    = queuedBlocksAnimations.get(animation);
-            if (!queuedAnimations.isEmpty()) {
-                blocksAnimations.get(animation).addAll(queuedAnimations);
-                queuedAnimations.clear();
+        if (finishedAnimations != null) {
+            for (AnimationType animationType : finishedAnimations) {
+                if (callbackArguments.containsKey(animationType)) {
+                    String callbackArgument = callbackArguments.get(animationType);
+                    callbackArguments.remove(animationType);
+                    handler.handleAnimationEnd(callbackArgument);
+                }
             }
         }
     }
@@ -102,59 +139,40 @@ class AnimationManager {
     }
 
     public void addActiveShapeAnimation(Shape shape,
-                                        ActiveShapeAnimation animationType,
-                                        Animation<Animated2D> animation) {
+            ActiveShapeAnimation animationType,
+            Animation<Animated2D> animation) {
         addActiveShapeAnimation(shape, animationType, animation, null, null);
     }
 
     public void addActiveShapeAnimation(Shape shape,
-                                        ActiveShapeAnimation animationType,
-                                        Animation<Animated2D> animation,
-                                        AnimatedObject.CallbackHandler callbackOnEnd,
-                                        String argument) {
-        AnimatedObject<Animated2D> newAnimation
+            ActiveShapeAnimation animationType, Animation<Animated2D> animation,
+            CallbackHandler callbackOnEnd, String argument) {
+        AnimatedObject<Animated2D> animatedObject
                 = new AnimatedObject<>(shape, animation);
         if (callbackOnEnd != null) {
-            newAnimation.notifyOnEnd(callbackOnEnd, argument);
+            activeShapeCallbackArguments.put(animationType, argument);
         }
-        if (currentlyTicked) {
-            queuedActiveShapeAnimations.put(animationType, newAnimation);
-        } else {
-            activeShapeAnimations.put(animationType, newAnimation);
-        }
+        activeShapeAnimations.put(animationType, animatedObject);
     }
 
-    public void addBlockAnimation(Block block,
-                                  BlockAnimation animationType,
-                                  Animation<Animated2D> animation) {
-        addBlockAnimation(block, animationType, animation, null, null);
+    public void addBlockAnimation(List<Block> blocks,
+            BlockAnimation animationType, List<Animation<Animated2D>> animations) {
+        addBlockAnimation(blocks, animationType, animations, null, null);
     }
 
-    public void addBlockAnimation(Block block,
-                                  BlockAnimation animationType,
-                                  Animation<Animated2D> animation,
-                                  AnimatedObject.CallbackHandler callbackOnEnd,
-                                  String argument) {
-        AnimatedObject<Animated2D> newAnimation
-                = new AnimatedObject<>(block, animation);
+    public void addBlockAnimation(List<Block> blocks,
+            BlockAnimation animationType, List<Animation<Animated2D>> animations,
+            CallbackHandler callbackOnEnd, String argument) {
+        List<AnimatedObject<Animated2D>> animatedObjects = new LinkedList<>();
+        Iterator<Animation<Animated2D>> animationsIterator = animations.iterator();
+        for (Block block : blocks) {
+            Animation<Animated2D> animation = animationsIterator.next();
+            animatedObjects.add(new AnimatedObject<>(block, animation));
+        }
         if (callbackOnEnd != null) {
-            newAnimation.notifyOnEnd(callbackOnEnd, argument);
+            blocksCallbackArguments.put(animationType, argument);
         }
-        if (currentlyTicked) {
-            queuedBlocksAnimations.get(animationType).add(newAnimation);
-        } else {
-            blocksAnimations.get(animationType).add(newAnimation);
-        }
-    }
-
-    // this method is not yet callback-safe
-    public void interruptAnimation(ActiveShapeAnimation animationType) {
-        activeShapeAnimations.remove(animationType);
-    }
-
-    // this method is not yet callback-safe
-    public void interruptAnimation(BlockAnimation animationType) {
-        blocksAnimations.get(animationType).clear();
+        blocksAnimations.put(animationType, animatedObjects);
     }
 
     public Animation<Animated2D> getAnimation(ActiveShapeAnimation animationType) {

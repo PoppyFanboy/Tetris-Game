@@ -10,12 +10,9 @@ import javax.imageio.ImageIO;
 
 import poppyfanboy.tetrisgame.entities.BlockColor;
 import poppyfanboy.tetrisgame.util.DoubleVector;
+import poppyfanboy.tetrisgame.util.Rotation;
 
 import static java.lang.Math.sqrt;
-import static java.lang.Math.max;
-
-
-import poppyfanboy.tetrisgame.util.Rotation;
 
 /**
  * A class that loads the resources.

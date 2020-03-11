@@ -6,20 +6,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Random;
 import java.util.TreeMap;
 
 import poppyfanboy.tetrisgame.Game;
+import poppyfanboy.tetrisgame.graphics.Animation;
+import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
 import poppyfanboy.tetrisgame.graphics.AnimatedObject;
-import poppyfanboy.tetrisgame.graphics.Animation;
-import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 
 import poppyfanboy.tetrisgame.input.Controllable;
 import poppyfanboy.tetrisgame.input.InputKey;
@@ -49,13 +47,14 @@ import static poppyfanboy.tetrisgame.util.IntVector.iVect;
  *  - second "difficult" (T-spin or tetris) lines clear in a row(B2B)
  *          => 12 points
  */
-public class GameField extends Entity implements TileField, Controllable, AnimatedObject.CallbackHandler {
+public class GameField extends Entity implements TileField, Controllable,
+        CallbackHandler {
     public static int DEFAULT_WIDTH = 10, DEFAULT_HEIGHT = 20;
     public static IntVector SPAWN_COORDINATES = iVect(2, 0);
 
     private GameState gameState;
     private EnumMap<InputKey, KeyState> lastInputs;
-    private AnimationManager animationManager= new AnimationManager();
+    private AnimationManager animationManager= new AnimationManager(this);
 
     // graphics
     private Entity parentEntity;
@@ -93,7 +92,9 @@ public class GameField extends Entity implements TileField, Controllable, Animat
         SHAPE_SPAWN_READY;
 
         public boolean shapeFalling() {
-            return this == SHAPE_SOFT_DROP || this == SHAPE_WALL_KICKED;
+            return this == SHAPE_SOFT_DROP
+                    || this == SHAPE_FORCED_DROP
+                    || this == SHAPE_WALL_KICKED;
         }
     }
 
@@ -185,11 +186,12 @@ public class GameField extends Entity implements TileField, Controllable, Animat
                 activeShape = null;
                 removeFilledRows(startY, startY + 3);
 
-                for (Block block : brokenBlocks) {
-                    animationManager.addBlockAnimation(block, BlockAnimation.BREAK,
-                            block.createBlockBreakAnimation(blockBreakDuration),
-                            this, "DROPPING_BLOCKS");
+                List<Animation<Animated2D>> animations = new ArrayList<>();
+                for (Block block : fallenBlocks.values()) {
+                    animations.add(block.createBlockBreakAnimation(blockBreakDuration));
                 }
+                animationManager.addBlockAnimation(brokenBlocks,
+                        BlockAnimation.BREAK, animations, this, "DROPPING_BLOCKS");
                 if (brokenBlocks.isEmpty()) {
                     changeState(SHAPE_SPAWN_READY);
                 }
@@ -201,11 +203,12 @@ public class GameField extends Entity implements TileField, Controllable, Animat
                 }
                 brokenBlocks = Collections.emptyList();
 
-                for (Block block : droppedBlocks) {
-                    animationManager.addBlockAnimation(block, BlockAnimation.DROP,
-                            block.createDropAnimation(), this,
-                            "SHAPE_SPAWN_READY");
+                animations = new ArrayList<>();
+                for (Block block : fallenBlocks.values()) {
+                    animations.add(block.createDropAnimation());
                 }
+                animationManager.addBlockAnimation(droppedBlocks, BlockAnimation.DROP,
+                        animations, this, "SHAPE_SPAWN_READY");
                 for (int i = droppedBlocksOldKeys.size() - 1; i >= 0; i--) {
                     Block block = droppedBlocks.get(i);
                     fallenBlocks.remove(droppedBlocksOldKeys.get(i));

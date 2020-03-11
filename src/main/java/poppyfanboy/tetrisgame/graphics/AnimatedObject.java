@@ -1,7 +1,5 @@
 package poppyfanboy.tetrisgame.graphics;
 
-import java.util.LinkedList;
-
 /**
  * A wrapper-class for the animation and the animated object. This class
  * is also provided with the ability to assign a callback to the animation,
@@ -13,7 +11,6 @@ public final class AnimatedObject<T> {
 
     private int duration = 0;
     private boolean isFinished = false;
-    private LinkedList<Callback> callbacks;
 
     public AnimatedObject(T object, Animation<T> animation) {
         this.animation = animation;
@@ -32,20 +29,7 @@ public final class AnimatedObject<T> {
         }
         if (animation.isFinished(duration)) {
             isFinished = true;
-            if (callbacks != null) {
-                for (Callback callback : callbacks) {
-                    callback.trigger();
-                }
-            }
         }
-    }
-
-    public void notifyOnEnd(CallbackHandler callback,
-                            String callbackArgument) {
-        if (callbacks == null) {
-            callbacks = new LinkedList<>();
-        }
-        callbacks.add(new Callback(callback, callbackArgument));
     }
 
     public void perform() {
@@ -63,23 +47,5 @@ public final class AnimatedObject<T> {
     public void finish() {
         animation.finish(object);
         isFinished = true;
-    }
-
-    public interface CallbackHandler {
-        void handleAnimationEnd(String argument);
-    }
-
-    private static class Callback {
-        private CallbackHandler method;
-        private String argument;
-
-        Callback(CallbackHandler method, String argument) {
-            this.method = method;
-            this.argument = argument;
-        }
-
-        public void trigger() {
-            method.handleAnimationEnd(argument);
-        }
     }
 }
