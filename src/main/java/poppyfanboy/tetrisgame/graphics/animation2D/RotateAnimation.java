@@ -26,7 +26,9 @@ public class RotateAnimation extends Animation<Animated2D> {
     @Override
     public void perform(Animated2D object, int currentDuration,
             double interpolation) {
-        double progress = (currentDuration + interpolation) / duration;
+        double progress = duration == 0
+                ? 1.0
+                : (currentDuration + interpolation) / duration;
         double angle = startAngle + (endAngle - startAngle) * progress;
         object.setRotationAngle(angle);
     }

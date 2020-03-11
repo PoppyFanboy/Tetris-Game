@@ -35,7 +35,9 @@ public class MoveAnimation extends Animation<Animated2D> {
     @Override
     public void perform(Animated2D object, int currentDuration,
             double interpolation) {
-        double progress = (currentDuration + interpolation) / duration;
+        double progress = duration == 0
+                ? 1.0
+                : (currentDuration + interpolation) / duration;
 
         DoubleVector currCoords = startCoords.times(1 - progress)
                 .add(endCoords.times(progress));
