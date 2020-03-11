@@ -1,7 +1,6 @@
 package poppyfanboy.tetrisgame.entities;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -45,6 +44,7 @@ class AnimationManager {
     public void tick() {
         singleObjectAnimationTick(activeShapeAnimations,
                 activeShapeCallbackArguments, handler);
+
         multipleObjectAnimationTick(blocksAnimations,
                 blocksCallbackArguments, handler);
     }
@@ -155,6 +155,11 @@ class AnimationManager {
         activeShapeAnimations.put(animationType, animatedObject);
     }
 
+    public void addActiveShapeCallback(ActiveShapeAnimation animationType,
+            String argument) {
+        activeShapeCallbackArguments.put(animationType, argument);
+    }
+
     public void addBlockAnimation(List<Block> blocks,
             BlockAnimation animationType, List<Animation<Animated2D>> animations) {
         addBlockAnimation(blocks, animationType, animations, null, null);
@@ -180,6 +185,16 @@ class AnimationManager {
             return activeShapeAnimations.get(animationType).getAnimation();
         } else {
             return null;
+        }
+    }
+
+    /**
+     * Interrupts the animation and cancels any related callbacks.
+     */
+    public void interruptAnimation(ActiveShapeAnimation animationType) {
+        if (activeShapeAnimations.containsKey(animationType)) {
+            activeShapeAnimations.remove(animationType);
+            activeShapeCallbackArguments.remove(animationType);
         }
     }
 }
