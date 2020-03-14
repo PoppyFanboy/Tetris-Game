@@ -7,4 +7,8 @@ public abstract class Animation<AnimatedObject> {
     public abstract boolean isFinished(int currentDuration);
 
     public abstract void finish(AnimatedObject object);
+
+    public boolean conflicts(Animation<AnimatedObject> other) {
+        return false;
+    }
 }

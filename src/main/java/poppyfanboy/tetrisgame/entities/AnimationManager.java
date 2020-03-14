@@ -1,202 +1,251 @@
 package poppyfanboy.tetrisgame.entities;
 
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.ArrayDeque;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Queue;
 
 import poppyfanboy.tetrisgame.graphics.AnimatedObject;
 import poppyfanboy.tetrisgame.graphics.Animation;
+import poppyfanboy.tetrisgame.graphics.AnimationEndHandler;
 import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 
-enum ActiveShapeAnimation {
-    DROP, WALL_KICK, ROTATION, LEFT_RIGHT
-}
-enum BlockAnimation {
-    BREAK, DROP
-}
-
-interface CallbackHandler {
-    void handleAnimationEnd(String argument);
-}
-
 /**
- * An object that manages the blocks / active shape animations.
+ * An object that manages all the animations in the game. Objects to be
+ * animated are added to the manager as soon as they are created, and removed
+ * after they are removed from the game. The objects are identified by their
+ * hash code, so you need to override it to something meaningful in order to
+ * guarantee performance of the animation gym.
  */
 class AnimationManager {
-    private EnumMap<ActiveShapeAnimation, AnimatedObject<Animated2D>>
-            activeShapeAnimations = new EnumMap<>(ActiveShapeAnimation.class);
-    private EnumMap<ActiveShapeAnimation, String>
-            activeShapeCallbackArguments = new EnumMap<>(ActiveShapeAnimation.class);
+    private HashMap<Animated2D,
+                AnimatedObject<Animated2D, ActiveShapeAnimationType>>
+            activeShapesAnimated = new HashMap<>();
+    private HashMap<Animated2D,
+                AnimatedObject<Animated2D, FallenBlockAnimationType>>
+            fallenBlocksAnimated = new HashMap<>();
 
-    private EnumMap<BlockAnimation, List<AnimatedObject<Animated2D>>>
-            blocksAnimations = new EnumMap<>(BlockAnimation.class);
-    private EnumMap<BlockAnimation, String>
-            blocksCallbackArguments = new EnumMap<>(BlockAnimation.class);
-
-    private final CallbackHandler handler;
-
-    public AnimationManager(CallbackHandler handler) {
-        this.handler = handler;
-    }
+    private boolean isIterating = false;
+    private Queue<PostponedAction<?, ?>> postponedActions = new ArrayDeque<>();
 
     public void tick() {
-        singleObjectAnimationTick(activeShapeAnimations,
-                activeShapeCallbackArguments, handler);
-
-        multipleObjectAnimationTick(blocksAnimations,
-                blocksCallbackArguments, handler);
-    }
-
-    // iterates through the animations, updates them, deletes the
-    // finished ones from the mapping and after that invokes the
-    // callbacks if there are any
-    private static <T extends Enum<T>> void singleObjectAnimationTick(
-            EnumMap<T, ? extends AnimatedObject<?>> animations,
-            EnumMap<T, String> callbackArguments, CallbackHandler handler) {
-        List<T> finishedAnimations = null;
-        Iterator<T> animationsIterator = animations.keySet().iterator();
-        while (animationsIterator.hasNext()) {
-            T animationType = animationsIterator.next();
-            AnimatedObject<?> animatedObject
-                    = animations.get(animationType);
-            animatedObject.tick();
-            if (animatedObject.finished()) {
-                animatedObject.perform();
-                animationsIterator.remove();
-                if (finishedAnimations == null) {
-                    finishedAnimations = new ArrayList<>();
-                }
-                finishedAnimations.add(animationType);
-            }
-        }
-        if (finishedAnimations != null) {
-            for (T animationType : finishedAnimations) {
-                if (callbackArguments.containsKey(animationType)) {
-                    // callback could (and actually does) mutate the
-                    // callbacks map, so you must first remove the old
-                    // value and only then trigger the callback
-                    String callbackArgument = callbackArguments.get(animationType);
-                    callbackArguments.remove(animationType);
-                    handler.handleAnimationEnd(callbackArgument);
-                }
-            }
-        }
-    }
-
-    // does the same thing, but the animation is considered to be finished
-    // only if all of the animation objects on the list are finished
-    // (passing an empty list does not count as a finished animation)
-    private static <AnimationType extends Enum<AnimationType>, T extends AnimatedObject<?>>
-            void multipleObjectAnimationTick(EnumMap<AnimationType,
-            List<T>> animations, EnumMap<AnimationType,
-            String> callbackArguments, CallbackHandler handler) {
-        List<AnimationType> finishedAnimations = null;
-        Iterator<AnimationType> animationsIterator = animations.keySet().iterator();
-        while (animationsIterator.hasNext()) {
-            AnimationType animationType = animationsIterator.next();
-            List<T> animatedObjects
-                    = animations.get(animationType);
-            if (animatedObjects.isEmpty()) {
-                animationsIterator.remove();
-                continue;
-            }
-            Iterator<T> animatedObjectsIterator
-                    = animatedObjects.iterator();
-            while (animatedObjectsIterator.hasNext()) {
-                AnimatedObject<?> animatedObject
-                        = animatedObjectsIterator.next();
-                animatedObject.tick();
-                if (animatedObject.finished()) {
-                    animatedObject.perform();
-                    animatedObjectsIterator.remove();
-                }
-            }
-            if (animatedObjects.isEmpty()) {
-                if (finishedAnimations == null) {
-                    finishedAnimations = new ArrayList<>();
-                }
-                finishedAnimations.add(animationType);
-                animationsIterator.remove();
-            }
-        }
-        if (finishedAnimations != null) {
-            for (AnimationType animationType : finishedAnimations) {
-                if (callbackArguments.containsKey(animationType)) {
-                    String callbackArgument = callbackArguments.get(animationType);
-                    callbackArguments.remove(animationType);
-                    handler.handleAnimationEnd(callbackArgument);
-                }
-            }
+        isIterating = true;
+        activeShapesAnimated.values().forEach(AnimatedObject::tick);
+        fallenBlocksAnimated.values().forEach(AnimatedObject::tick);
+        isIterating = false;
+        while (!postponedActions.isEmpty()) {
+            postponedActions.poll().perform();
         }
     }
 
     public void perform(double interpolation) {
-        activeShapeAnimations.values().forEach(
-                animation -> animation.perform(interpolation));
-        blocksAnimations.values().forEach(
-                animationList -> animationList.forEach(
-                        animation -> animation.perform(interpolation)));
+        activeShapesAnimated.values()
+                .forEach(object -> object.perform(interpolation));
+        fallenBlocksAnimated.values()
+                .forEach(object -> object.perform(interpolation));
     }
 
-    public void addActiveShapeAnimation(Shape shape,
-            ActiveShapeAnimation animationType,
-            Animation<Animated2D> animation) {
-        addActiveShapeAnimation(shape, animationType, animation, null, null);
+    // -- object addition operations --
+
+    public void addActiveShape(Shape activeShape) {
+        addObject(activeShape, activeShapesAnimated,
+                ActiveShapeAnimationType.class);
     }
 
-    public void addActiveShapeAnimation(Shape shape,
-            ActiveShapeAnimation animationType, Animation<Animated2D> animation,
-            CallbackHandler callbackOnEnd, String argument) {
-        AnimatedObject<Animated2D> animatedObject
-                = new AnimatedObject<>(shape, animation);
-        if (callbackOnEnd != null) {
-            activeShapeCallbackArguments.put(animationType, argument);
-        }
-        activeShapeAnimations.put(animationType, animatedObject);
+    public void addFallenBlock(Block fallenBlock) {
+        addObject(fallenBlock, fallenBlocksAnimated,
+                FallenBlockAnimationType.class);
     }
 
-    public void addActiveShapeCallback(ActiveShapeAnimation animationType,
-            String argument) {
-        activeShapeCallbackArguments.put(animationType, argument);
-    }
-
-    public void addBlockAnimation(List<Block> blocks,
-            BlockAnimation animationType, List<Animation<Animated2D>> animations) {
-        addBlockAnimation(blocks, animationType, animations, null, null);
-    }
-
-    public void addBlockAnimation(List<Block> blocks,
-            BlockAnimation animationType, List<Animation<Animated2D>> animations,
-            CallbackHandler callbackOnEnd, String argument) {
-        List<AnimatedObject<Animated2D>> animatedObjects = new LinkedList<>();
-        Iterator<Animation<Animated2D>> animationsIterator = animations.iterator();
-        for (Block block : blocks) {
-            Animation<Animated2D> animation = animationsIterator.next();
-            animatedObjects.add(new AnimatedObject<>(block, animation));
-        }
-        if (callbackOnEnd != null) {
-            blocksCallbackArguments.put(animationType, argument);
-        }
-        blocksAnimations.put(animationType, animatedObjects);
-    }
-
-    public Animation<Animated2D> getAnimation(ActiveShapeAnimation animationType) {
-        if (activeShapeAnimations.containsKey(animationType)) {
-            return activeShapeAnimations.get(animationType).getAnimation();
-        } else {
-            return null;
-        }
-    }
+    // -- animation addition operations --
 
     /**
-     * Interrupts the animation and cancels any related callbacks.
+     * @throws  IllegalArgumentException in case the specified active shape
+     *          is not present in the animation manager. You have to first add
+     *          it through the {@link AnimationManager#addActiveShape(Shape)}
+     *          method.
+     *
+     *          I could design this method in a way that it would do
+     *          this {@code addActiveShape} call for you, but it would slightly
+     *          complicate the implementation because of the thing with the
+     *          postponed actions, and also I assume that if the calling code
+     *          does not explicitly add the active shape to the animation
+     *          manager, then it might mean that there is a some kind of a
+     *          mistake in the calling code.
      */
-    public void interruptAnimation(ActiveShapeAnimation animationType) {
-        if (activeShapeAnimations.containsKey(animationType)) {
-            activeShapeAnimations.remove(animationType);
-            activeShapeCallbackArguments.remove(animationType);
+    public void addAnimation(Shape activeShape,
+            ActiveShapeAnimationType animationType,
+            Animation<Animated2D> animation, AnimationEndHandler endHandler) {
+        addAnimation(activeShape, animationType, animation, endHandler,
+                activeShapesAnimated);
+    }
+
+    public void addAnimation(Block fallenBlock,
+            FallenBlockAnimationType animationType,
+            Animation<Animated2D> animation, AnimationEndHandler endHandler) {
+        addAnimation(fallenBlock, animationType, animation, endHandler,
+                fallenBlocksAnimated);
+    }
+
+    public void addAnimation(Shape activeShape,
+            ActiveShapeAnimationType animationType,
+            Animation<Animated2D> animation) {
+        addAnimation(activeShape, animationType, animation, null);
+    }
+
+    public void addAnimation(Block fallenBlock,
+            FallenBlockAnimationType animationType,
+            Animation<Animated2D> animation) {
+        addAnimation(fallenBlock, animationType, animation, null);
+    }
+
+    // -- callbacks addition operations --
+
+    public void addAnimationCallback(Shape activeShape,
+            ActiveShapeAnimationType animationType,
+            AnimationEndHandler endHandler) {
+        addAnimationCallback(activeShape, animationType, endHandler,
+                activeShapesAnimated);
+    }
+
+    // -- animations getter operations --
+
+    public Animation<Animated2D> getAnimation(Shape activeShape,
+            ActiveShapeAnimationType animationType) {
+        return activeShapesAnimated
+                .get(activeShape).getAnimation(animationType);
+    }
+
+    // -- animation interruption operations --
+
+    public void interruptAnimation(Shape activeShape,
+            ActiveShapeAnimationType animationType) {
+        interruptAnimation(activeShape, animationType, activeShapesAnimated);
+    }
+
+    // -- object removal operations --
+
+    public void removeActiveShape(Shape activeShape) {
+        removeObject(activeShape, activeShapesAnimated);
+    }
+
+    public void removeFallenBlock(Block fallenBlock) {
+        removeObject(fallenBlock, fallenBlocksAnimated);
+    }
+
+
+    // -------------------------------------------------------
+    // -- generic implementations of the methods from above --
+    // -------------------------------------------------------
+
+    private <T, K extends Enum<K>> void addObject(T object,
+            Map<T, AnimatedObject<T, K>> map, Class<K> animationTypes) {
+        if (isIterating) {
+            postponedActions
+                    .add(getObjectAdditionAction(object, map, animationTypes));
+        }
+        if (map.containsKey(object)) {
+            throw new IllegalArgumentException(String.format("There is "
+                    + "already a %s object present in the animation manager",
+                    object));
+        }
+        map.put(object, new AnimatedObject<>(object, animationTypes));
+    }
+
+    // if no endHandler is specified, set it to null
+    private <T, K extends Enum<K>> void addAnimation(T object,
+            K animationType, Animation<T> animation,
+            AnimationEndHandler endHandler,
+            Map<T, AnimatedObject<T, K>> map) {
+        throwExceptionIfNotPresent(object, map);
+        map.get(object).addAnimation(animationType, animation, endHandler);
+    }
+
+    private <T, K extends Enum<K>> void addAnimationCallback(T object,
+            K animationType, AnimationEndHandler endHandler,
+            Map<T, AnimatedObject<T, K>> map) {
+        throwExceptionIfNotPresent(object, map);
+        map.get(object).addCallback(animationType, endHandler);
+    }
+
+    private <T, K extends Enum<K>> void interruptAnimation(T object,
+            K animationType, Map<T, AnimatedObject<T, K>> map) {
+        throwExceptionIfNotPresent(object, map);
+        map.get(object).interruptAnimation(animationType);
+    }
+
+    private <T, K extends Enum<K>> void removeObject(T object,
+            Map<T, AnimatedObject<T, K>> map) {
+        if (isIterating) {
+            postponedActions.add(getObjectRemovalAction(object, map));
+        }
+        map.remove(object);
+    }
+
+
+    private class PostponedAction<T, K extends Enum<K>> {
+        private final ActionType actionType;
+        private final Map<T, AnimatedObject<T, K>> map;
+
+        private T object;
+        private Class<K> animationTypes;
+
+        private PostponedAction(ActionType actionType, T object,
+                Map<T, AnimatedObject<T, K>> map, Class<K> animationTypes) {
+            this.actionType = actionType;
+            this.object = object;
+            this.map = map;
+            this.animationTypes = animationTypes;
+        }
+
+        public void perform() {
+            switch (actionType) {
+                case ADD_OBJECT:
+                    addObject(object, map, animationTypes);
+                    break;
+
+                case REMOVE_OBJECT:
+                    removeObject(object, map);
+                    break;
+            }
         }
     }
+    private enum ActionType {
+        ADD_OBJECT, REMOVE_OBJECT
+    }
+
+    private <T, K extends Enum<K>> PostponedAction<T, K>
+            getObjectRemovalAction(T object,
+                    Map<T, AnimatedObject<T, K>> map) {
+        return new PostponedAction<>(
+                ActionType.REMOVE_OBJECT, object, map, null);
+    }
+
+    private <T, K extends Enum<K>> PostponedAction<T, K>
+            getObjectAdditionAction(T object, Map<T, AnimatedObject<T, K>> map,
+                    Class<K> animationTypes) {
+        return new PostponedAction<>(
+                ActionType.ADD_OBJECT, object, map, animationTypes);
+    }
+
+    // a small helper method that throws an exception in case the object is
+    // not present among the keys of the map
+    private static <T> void throwExceptionIfNotPresent(T object,
+            Map<T, ?> map) {
+        if (!map.containsKey(object)) {
+            throw new IllegalArgumentException(String.format("The specified"
+                    + " object %s is not present in the animation manager.",
+                    object));
+        }
+    }
+}
+
+enum EntityType {
+    ACTIVE_SHAPE, FALLEN_BLOCK
+}
+enum ActiveShapeAnimationType {
+    DROP, WALL_KICK, ROTATION, LEFT_RIGHT
+}
+enum FallenBlockAnimationType {
+    BREAK, DROP
 }

@@ -74,6 +74,14 @@ public class IntVector {
     }
 
     @Override
+    public int hashCode() {
+        int mappedX = x > 0 ? 2 * x : -2 * x - 1;
+        int mappedY = y > 0 ? 2 * y : -2 * y - 1;
+        // this function only works for non-negative numbers
+        return (mappedX + mappedY) * (mappedX + mappedY + 1) / 2 + mappedY;
+    }
+
+    @Override
     public boolean equals(Object otherObject) {
         if (this == otherObject) {
             return true;

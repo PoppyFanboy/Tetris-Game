@@ -6,11 +6,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import java.util.Objects;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.graphics.animation2D.HVLinearAnimation;
 import poppyfanboy.tetrisgame.graphics.animation2D.MoveAnimation;
-import poppyfanboy.tetrisgame.graphics.animation2D.RotateAnimation;
+import poppyfanboy.tetrisgame.graphics.animation2D.RotationAnimation;
 import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.util.DoubleVector;
@@ -148,11 +149,11 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
                 tileCoords.getX() * blockWidth, duration, blockWidth);
     }
 
-    public RotateAnimation createRotationAnimation(double endAngle,
-            int duration) {
+    public RotationAnimation createRotationAnimation(double endAngle,
+            boolean isClockwise, int duration) {
         rotationAngle = Rotation.normalizeAngle(rotationAngle);
-        return new RotateAnimation(rotationAngle,
-                endAngle, duration, Math.PI / 2);
+        return new RotationAnimation(rotationAngle,
+                endAngle, isClockwise, duration, Math.PI / 2);
 
     }
 
@@ -293,6 +294,18 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
                     .apply(convexHull[i].times(blockWidth));
         }
         return convexHull;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("[%s shape type, %s rotated, coords: %s, "
+                + " blocks: %s]", shapeType, rotation,
+                tileCoords, Arrays.toString(blocks));
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(shapeType, rotation, tileCoords);
     }
 
     /**

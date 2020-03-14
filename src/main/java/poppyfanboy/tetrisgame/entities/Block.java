@@ -1,11 +1,13 @@
 package poppyfanboy.tetrisgame.entities;
 
 import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
 import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 
+import java.util.Objects;
 import poppyfanboy.tetrisgame.graphics.animation2D.AcceleratedMoveAnimation;
 import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 import poppyfanboy.tetrisgame.graphics.animation2D.BlockBreakAnimation;
@@ -113,12 +115,12 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
     public void render(Graphics2D g, double interpolation) {
         final int blockWidth = gameState.getBlockWidth();
         // draw blocks as they are on the tile field
-        /*
+
         g.setColor(BlockColor.BLUE.getColor());
         g.setStroke(new BasicStroke(2));
         g.fillRect(tileCoords.getX() * blockWidth + 20,
                 tileCoords.getY() * blockWidth + 20,
-                blockWidth, blockWidth);*/
+                blockWidth, blockWidth);
 
         double rotationAngle
                 = getGlobalTransform().getRotation().getAngle();
@@ -202,11 +204,6 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
     }
 
     @Override
-    public String toString() {
-        return tileCoords.toString();
-    }
-
-    @Override
     public void setCoords(DoubleVector newCoords) {
         coords = newCoords;
     }
@@ -250,5 +247,17 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
     @Override
     public double getScale() {
         return scale;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("[ %s colored block, coords: %s ]",
+                blockColor, tileCoords.toString());
+    }
+
+    @Override
+    public int hashCode() {
+        // a block is completely defined by its coordinates on the tile field
+        return Objects.hash(tileCoords);
     }
 }
