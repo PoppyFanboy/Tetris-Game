@@ -85,11 +85,9 @@ public class GameField extends Entity implements TileField, Controllable {
     // these collections are made unmodifiable
     // blocks that are being broken when the filled lines are removed
     private List<Block> brokenBlocks = Collections.emptyList();
-    private int brokenBlocksCounter = 0;
     // blocks above the removed filled lines that are dropped down after the
     // animation of removing the filled lines is finished
     private List<Block> droppedBlocks = Collections.emptyList();
-    private int droppedBlocksCounter = 0;
     // coordinates of these blocks before they were dropped down
     private List<IntVector> droppedBlocksOldKeys = Collections.emptyList();
 
@@ -148,13 +146,6 @@ public class GameField extends Entity implements TileField, Controllable {
 
         switch (newState) {
             case SHAPE_SPAWN_READY:
-                droppedBlocksCounter++;
-                if (droppedBlocksCounter < droppedBlocks.size()) {
-                    nextState = SHAPE_SPAWN_READY;
-                    return;
-                }
-                droppedBlocksCounter = 0;
-
                 droppedBlocks = Collections.emptyList();
                 droppedBlocksOldKeys = Collections.emptyList();
 
@@ -223,8 +214,14 @@ public class GameField extends Entity implements TileField, Controllable {
 
                 for (Block block : brokenBlocks) {
                     animationManager.addAnimation(block,
+                        LockedBlockAnimationType.BREAK,
+                        block.createBlockBreakAnimation(blockBreakDuration));
+                }
+                if (!brokenBlocks.isEmpty()) {
+                    // add callback only for one block, since all blocks take
+                    // the same time to disappear
+                    animationManager.addAnimationCallback(brokenBlocks.get(0),
                             LockedBlockAnimationType.BREAK,
-                            block.createBlockBreakAnimation(blockBreakDuration),
                             reason -> nextState = DROPPING_BLOCKS);
                 }
                 if (brokenBlocks.isEmpty()) {
@@ -233,13 +230,6 @@ public class GameField extends Entity implements TileField, Controllable {
                 break;
 
             case DROPPING_BLOCKS:
-                brokenBlocksCounter++;
-                if (brokenBlocksCounter < brokenBlocks.size()) {
-                    nextState = DROPPING_BLOCKS;
-                    return;
-                }
-                brokenBlocksCounter = 0;
-
                 for (Block block : brokenBlocks) {
                     lockedBlocks.remove(block.getTileCoords());
                     animationManager.removeLockedBlock(block);
@@ -249,7 +239,13 @@ public class GameField extends Entity implements TileField, Controllable {
                 for (Block block : droppedBlocks) {
                     animationManager.addAnimation(block,
                             LockedBlockAnimationType.DROP,
-                            block.createDropAnimation(),
+                            block.createDropAnimation());
+                }
+                if (!droppedBlocks.isEmpty()) {
+                    // add callback only for the highest block, since it will
+                    // take the longest time to drop down among all other blocks
+                    animationManager.addAnimationCallback(droppedBlocks.get(0),
+                            LockedBlockAnimationType.DROP,
                             reason -> nextState = SHAPE_SPAWN_READY);
                 }
                 for (int i = droppedBlocksOldKeys.size() - 1; i >= 0; i--) {

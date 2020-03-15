@@ -108,6 +108,13 @@ class AnimationManager {
                 activeShapesAnimated);
     }
 
+    public void addAnimationCallback(Block block,
+            LockedBlockAnimationType animationType,
+            AnimationEndHandler endHandler) {
+        addAnimationCallback(block, animationType, endHandler,
+                lockedBlocksAnimated);
+    }
+
     // -- animations getter operations --
 
     public Animation<Animated2D> getAnimation(Shape activeShape,
