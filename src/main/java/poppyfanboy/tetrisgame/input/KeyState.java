@@ -10,4 +10,8 @@ public enum KeyState {
     RELEASED,
     // the key is pressed during the whole current tick
     HELD;
+
+    public boolean isActive() {
+        return this == PRESSED || this == HELD;
+    }
 }

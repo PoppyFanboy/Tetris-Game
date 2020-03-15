@@ -303,11 +303,6 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
                 tileCoords, Arrays.toString(blocks));
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(shapeType, rotation, tileCoords);
-    }
-
     /**
      * Checks, if the shape with the specified parameters fits into
      * the specified tile field.

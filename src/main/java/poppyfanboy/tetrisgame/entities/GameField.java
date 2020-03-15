@@ -58,9 +58,13 @@ public class GameField extends Entity implements TileField, Controllable {
     private double rotationAngle;
 
     // game logic
+    private GameFieldState state = STOPPED;
+
     private int widthInBlocks, heightInBlocks;
     private Shape activeShape;
-    private NavigableMap<IntVector, Block> fallenBlocks
+    // blocks that were locked at the game field after some of the shapes
+    // fell onto the bottom of the game field
+    private NavigableMap<IntVector, Block> lockedBlocks
             = new TreeMap<>(IntVector.Y_ORDER);
 
     private final Random random;
@@ -68,16 +72,19 @@ public class GameField extends Entity implements TileField, Controllable {
     private int score = 0;
     private int clearedLinesCount = 0;
 
+    // current timings (updated as the player score is going up)
     private int softDropDuration = Game.TICKS_PER_SECOND / 4;
     private int forcedDropDuration = Game.TICKS_PER_SECOND / 16;
     private int userControlAnimationDuration = softDropDuration;
     private int blockBreakDuration = softDropDuration;
 
-    private GameFieldState state = STOPPED;
-
     // these collections are made unmodifiable
+    // blocks that are being broken when the filled lines are removed
     private List<Block> brokenBlocks = Collections.emptyList();
+    // blocks above the removed filled lines that are dropped down after the
+    // animation of removing the filled lines is finished
     private List<Block> droppedBlocks = Collections.emptyList();
+    // coordinates of these blocks before they were dropped down
     private List<IntVector> droppedBlocksOldKeys = Collections.emptyList();
 
     public enum GameFieldState {
@@ -88,9 +95,7 @@ public class GameField extends Entity implements TileField, Controllable {
         SHAPE_SPAWN_READY;
 
         public boolean shapeFalling() {
-            return this == SHAPE_SOFT_DROP
-                    || this == SHAPE_FORCED_DROP
-                    || this == SHAPE_WALL_KICKED;
+            return this == SHAPE_SOFT_DROP || this == SHAPE_FORCED_DROP;
         }
     }
 
@@ -134,27 +139,19 @@ public class GameField extends Entity implements TileField, Controllable {
      */
     private void changeState(GameFieldState newState) {
         state = newState;
+
         switch (newState) {
             case SHAPE_SPAWN_READY:
                 droppedBlocks = Collections.emptyList();
                 droppedBlocksOldKeys = Collections.emptyList();
 
-                ShapeType randomType = Util.getRandomInstance(random, TetrisShapeType.class);
-                BlockColor randomColor = Util.getRandomInstance(random, BlockColor.class);
-                BlockColor[] colors = Shape.generateColorsArray(randomType, randomColor);
-
-                if (spawnNewActiveShape(randomType, SPAWN_COORDINATES, Rotation.INITIAL, colors)) {
-                    if (lastInputs != null) {
-                        KeyState downKeyState = lastInputs.get(InputKey.ARROW_DOWN);
-                        if (downKeyState == KeyState.HELD
-                                || downKeyState == KeyState.PRESSED) {
-                            changeState(SHAPE_FORCED_DROP);
-                        } else {
-                            changeState(SHAPE_SOFT_DROP);
-                        }
-                    } else {
+                if (spawnNewActiveShape()) {
+                    if (lastInputs == null
+                            || !lastInputs
+                                    .get(InputKey.ARROW_DOWN).isActive()) {
                         changeState(SHAPE_SOFT_DROP);
                     }
+                    changeState(SHAPE_FORCED_DROP);
                 } else {
                     changeState(SHAPE_FELL);
                 }
@@ -172,9 +169,7 @@ public class GameField extends Entity implements TileField, Controllable {
                     animationManager.addAnimation(activeShape,
                             ActiveShapeAnimationType.DROP,
                             activeShape.createDropAnimation(duration),
-                            reason -> {
-                                changeState(state);
-                            });
+                            reason -> { changeState(state); });
                 } else {
                     changeState(SHAPE_FELL);
                 }
@@ -185,10 +180,13 @@ public class GameField extends Entity implements TileField, Controllable {
 
             case SHAPE_FELL:
                 // wait until all of the animations are gone
-                for (ActiveShapeAnimationType animationType : ActiveShapeAnimationType.values()) {
-                    if (animationManager.getAnimation(activeShape, animationType) != null) {
-                        animationManager.addAnimationCallback(activeShape, animationType,
-                        reason -> { changeState(SHAPE_FELL); });
+                for (ActiveShapeAnimationType animationType
+                        : ActiveShapeAnimationType.values()) {
+                    if (animationManager.getAnimation(
+                            activeShape, animationType) != null) {
+                        animationManager.addAnimationCallback(activeShape,
+                                animationType,
+                                reason -> { changeState(SHAPE_FELL); });
                         return;
                     }
                 }
@@ -200,17 +198,19 @@ public class GameField extends Entity implements TileField, Controllable {
                 final int startY = activeShape.getTileCoords().getY();
                 // lock the active shape
                 for (Block block : activeShape.getBlocks(this)) {
-                    fallenBlocks.put(block.getTileCoords(), block);
+                    lockedBlocks.put(block.getTileCoords(), block);
+                    animationManager.addLockedBlock(block);
                 }
+                animationManager.removeActiveShape(activeShape);
                 activeShape = null;
                 removeFilledRows(startY, startY + 3);
 
-                for (Block block : fallenBlocks.values()) {
+                for (Block block : lockedBlocks.values()) {
                     animationManager.addAnimation(block,
-                            FallenBlockAnimationType.BREAK, block.createBlockBreakAnimation(blockBreakDuration),
+                            LockedBlockAnimationType.BREAK,
+                            block.createBlockBreakAnimation(blockBreakDuration),
                             reason -> { changeState(DROPPING_BLOCKS); });
                 }
-
                 if (brokenBlocks.isEmpty()) {
                     changeState(SHAPE_SPAWN_READY);
                 }
@@ -218,20 +218,20 @@ public class GameField extends Entity implements TileField, Controllable {
 
             case DROPPING_BLOCKS:
                 for (Block block : brokenBlocks) {
-                    fallenBlocks.remove(block.getTileCoords());
+                    lockedBlocks.remove(block.getTileCoords());
                 }
                 brokenBlocks = Collections.emptyList();
 
-                for (Block block : fallenBlocks.values()) {
+                for (Block block : lockedBlocks.values()) {
                     animationManager.addAnimation(block,
-                     FallenBlockAnimationType.DROP,
+                     LockedBlockAnimationType.DROP,
                             block.createDropAnimation(),
                             reason -> { changeState(SHAPE_SPAWN_READY); });
                 }
                 for (int i = droppedBlocksOldKeys.size() - 1; i >= 0; i--) {
                     Block block = droppedBlocks.get(i);
-                    fallenBlocks.remove(droppedBlocksOldKeys.get(i));
-                    fallenBlocks.put(block.getTileCoords(), block);
+                    lockedBlocks.remove(droppedBlocksOldKeys.get(i));
+                    lockedBlocks.put(block.getTileCoords(), block);
                 }
                 if (droppedBlocks.isEmpty()) {
                     changeState(SHAPE_SPAWN_READY);
@@ -241,19 +241,32 @@ public class GameField extends Entity implements TileField, Controllable {
     }
 
     /**
-     * Try to spawn the specified shape on a game field.
+     * Tries to spawn a new active shape (of a random color and type) at the top
+     * of the game field. In case it successes it also adds the newly spawned
+     * active shape to the animation manager.
      *
-     * This method can fail in case the inserted shape overlaps some
-     * of the blocks on the field or it is out of the field bounds.
+     * Returns {@code false} in case it fails to do so (either it is spawned
+     * so that it overlaps some of the fallen blocks, or it is spawned
+     * completely out of player sight).
+     *
+     * (Spawn locations should probably be defined in the shape types
+     * themselves, but for now they are just hard-coded into the game field
+     * object.)
      */
-    private boolean spawnNewActiveShape(ShapeType shapeType,
-            IntVector tileCoords, Rotation rotation,
-            BlockColor[] blockColors) {
-        if (!Shape.fits(shapeType, tileCoords, rotation, this)) {
+    private boolean spawnNewActiveShape() {
+        ShapeType shapeType
+                = Util.getRandomInstance(random, TetrisShapeType.class);
+        BlockColor color
+                = Util.getRandomInstance(random, BlockColor.class);
+        BlockColor[] blockColors
+                = Shape.generateColorsArray(shapeType, color);
+
+        if (!Shape.fits(shapeType, SPAWN_COORDINATES, Rotation.INITIAL, this)) {
             return false;
         }
-        activeShape = new Shape(gameState, shapeType, rotation,
-                tileCoords, blockColors, this);
+        activeShape = new Shape(gameState, shapeType, Rotation.INITIAL,
+                SPAWN_COORDINATES, blockColors, this);
+        animationManager.addActiveShape(activeShape);
         return true;
     }
 
@@ -272,7 +285,7 @@ public class GameField extends Entity implements TileField, Controllable {
         // the iterator returns the blocks from top the top
         // ones down to the bottom ones
         Collection<Block> removalCandidates
-                = fallenBlocks.subMap(startCoords, true, endCoords, true)
+                = lockedBlocks.subMap(startCoords, true, endCoords, true)
                 .values();
         int currentRow = startY - 1;
 
@@ -305,7 +318,7 @@ public class GameField extends Entity implements TileField, Controllable {
         if (clearedLinesIndices.size() != 0) {
             final int bottomLine = clearedLinesIndices
                     .get(clearedLinesIndices.size() - 1) - 1;
-            droppedBlocks = new ArrayList<>(fallenBlocks.subMap(
+            droppedBlocks = new ArrayList<>(lockedBlocks.subMap(
                     new IntVector(0, 0), true,
                     new IntVector(width - 1, bottomLine), true).values());
             // these has not yet been removed from the fallenBlocks mapping
@@ -350,7 +363,7 @@ public class GameField extends Entity implements TileField, Controllable {
     @Override
     public Collection<? extends TileFieldObject> getObjects() {
         ArrayList<TileFieldObject> objects
-                = new ArrayList<>(fallenBlocks.values());
+                = new ArrayList<>(lockedBlocks.values());
         if (activeShape != null) {
             objects.add(activeShape);
         }
@@ -437,7 +450,7 @@ public class GameField extends Entity implements TileField, Controllable {
         if (activeShape != null) {
             activeShape.render(g, interpolation);
         }
-        for (Block block : fallenBlocks.values()) {
+        for (Block block : lockedBlocks.values()) {
             block.render(g, interpolation);
         }
     }
@@ -459,7 +472,7 @@ public class GameField extends Entity implements TileField, Controllable {
         if (activeShape != null) {
             activeShape.tick();
         }
-        for (Block block : fallenBlocks.values()) {
+        for (Block block : lockedBlocks.values()) {
             block.tick();
         }
     }

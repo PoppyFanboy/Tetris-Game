@@ -22,8 +22,8 @@ class AnimationManager {
                 AnimatedObject<Animated2D, ActiveShapeAnimationType>>
             activeShapesAnimated = new HashMap<>();
     private HashMap<Animated2D,
-                AnimatedObject<Animated2D, FallenBlockAnimationType>>
-            fallenBlocksAnimated = new HashMap<>();
+                AnimatedObject<Animated2D, LockedBlockAnimationType>>
+            lockedBlocksAnimated = new HashMap<>();
 
     private boolean isIterating = false;
     private Queue<PostponedAction<?, ?>> postponedActions = new ArrayDeque<>();
@@ -31,7 +31,7 @@ class AnimationManager {
     public void tick() {
         isIterating = true;
         activeShapesAnimated.values().forEach(AnimatedObject::tick);
-        fallenBlocksAnimated.values().forEach(AnimatedObject::tick);
+        lockedBlocksAnimated.values().forEach(AnimatedObject::tick);
         isIterating = false;
         while (!postponedActions.isEmpty()) {
             postponedActions.poll().perform();
@@ -41,7 +41,7 @@ class AnimationManager {
     public void perform(double interpolation) {
         activeShapesAnimated.values()
                 .forEach(object -> object.perform(interpolation));
-        fallenBlocksAnimated.values()
+        lockedBlocksAnimated.values()
                 .forEach(object -> object.perform(interpolation));
     }
 
@@ -52,9 +52,9 @@ class AnimationManager {
                 ActiveShapeAnimationType.class);
     }
 
-    public void addFallenBlock(Block fallenBlock) {
-        addObject(fallenBlock, fallenBlocksAnimated,
-                FallenBlockAnimationType.class);
+    public void addLockedBlock(Block lockedBlock) {
+        addObject(lockedBlock, lockedBlocksAnimated,
+                LockedBlockAnimationType.class);
     }
 
     // -- animation addition operations --
@@ -81,10 +81,10 @@ class AnimationManager {
     }
 
     public void addAnimation(Block fallenBlock,
-            FallenBlockAnimationType animationType,
+            LockedBlockAnimationType animationType,
             Animation<Animated2D> animation, AnimationEndHandler endHandler) {
         addAnimation(fallenBlock, animationType, animation, endHandler,
-                fallenBlocksAnimated);
+                lockedBlocksAnimated);
     }
 
     public void addAnimation(Shape activeShape,
@@ -94,7 +94,7 @@ class AnimationManager {
     }
 
     public void addAnimation(Block fallenBlock,
-            FallenBlockAnimationType animationType,
+            LockedBlockAnimationType animationType,
             Animation<Animated2D> animation) {
         addAnimation(fallenBlock, animationType, animation, null);
     }
@@ -130,7 +130,7 @@ class AnimationManager {
     }
 
     public void removeFallenBlock(Block fallenBlock) {
-        removeObject(fallenBlock, fallenBlocksAnimated);
+        removeObject(fallenBlock, lockedBlocksAnimated);
     }
 
 
@@ -241,11 +241,11 @@ class AnimationManager {
 }
 
 enum EntityType {
-    ACTIVE_SHAPE, FALLEN_BLOCK
+    ACTIVE_SHAPE, LOCKED_BLOCK
 }
 enum ActiveShapeAnimationType {
     DROP, WALL_KICK, ROTATION, LEFT_RIGHT
 }
-enum FallenBlockAnimationType {
+enum LockedBlockAnimationType {
     BREAK, DROP
 }

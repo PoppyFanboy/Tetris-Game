@@ -254,10 +254,4 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
         return String.format("[ %s colored block, coords: %s ]",
                 blockColor, tileCoords.toString());
     }
-
-    @Override
-    public int hashCode() {
-        // a block is completely defined by its coordinates on the tile field
-        return Objects.hash(tileCoords);
-    }
 }
