@@ -122,6 +122,10 @@ public final class AnimatedObject<T, K extends Enum<K>> {
     }
 
     public Animation<T> getAnimation(K animationType) {
+        if (!animations.containsKey(animationType)
+                || animations.get(animationType).finished()) {
+            return null;
+        }
         return animations.get(animationType).getAnimation();
     }
 

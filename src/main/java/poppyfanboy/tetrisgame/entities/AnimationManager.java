@@ -112,6 +112,9 @@ class AnimationManager {
 
     public Animation<Animated2D> getAnimation(Shape activeShape,
             ActiveShapeAnimationType animationType) {
+        if (!activeShapesAnimated.containsKey(activeShape)) {
+            return null;
+        }
         return activeShapesAnimated
                 .get(activeShape).getAnimation(animationType);
     }
@@ -129,7 +132,7 @@ class AnimationManager {
         removeObject(activeShape, activeShapesAnimated);
     }
 
-    public void removeFallenBlock(Block fallenBlock) {
+    public void removeLockedBlock(Block fallenBlock) {
         removeObject(fallenBlock, lockedBlocksAnimated);
     }
 
@@ -143,6 +146,7 @@ class AnimationManager {
         if (isIterating) {
             postponedActions
                     .add(getObjectAdditionAction(object, map, animationTypes));
+            return;
         }
         if (map.containsKey(object)) {
             throw new IllegalArgumentException(String.format("There is "
@@ -178,6 +182,7 @@ class AnimationManager {
             Map<T, AnimatedObject<T, K>> map) {
         if (isIterating) {
             postponedActions.add(getObjectRemovalAction(object, map));
+            return;
         }
         map.remove(object);
     }

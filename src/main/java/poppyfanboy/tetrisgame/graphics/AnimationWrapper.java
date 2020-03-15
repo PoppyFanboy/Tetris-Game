@@ -68,10 +68,12 @@ public class AnimationWrapper<T> {
 
     public void finish() {
         animation.finish(object);
-        isFinished = true;
-        if (endHandlers != null) {
-            endHandlers.forEach(endHandler -> endHandler
-                    .handleAnimationEnd(AnimationEndReason.FORCE_FINISHED));
+        if (!isFinished) {
+            isFinished = true;
+            if (endHandlers != null) {
+                endHandlers.forEach(endHandler -> endHandler
+                        .handleAnimationEnd(AnimationEndReason.FORCE_FINISHED));
+            }
         }
     }
 
@@ -85,11 +87,12 @@ public class AnimationWrapper<T> {
                 && reason != AnimationEndReason.INTERRUPTED_BY_ANIMATION) {
             throw new IllegalArgumentException("Unexpected reason passed.");
         }
-
-        isFinished = true;
-        if (endHandlers != null) {
-            endHandlers.forEach(endHandler -> endHandler.
-                    handleAnimationEnd(AnimationEndReason.INTERRUPTED));
+        if (!isFinished) {
+            isFinished = true;
+            if (endHandlers != null) {
+                endHandlers.forEach(endHandler -> endHandler.
+                        handleAnimationEnd(AnimationEndReason.INTERRUPTED));
+            }
         }
     }
 
