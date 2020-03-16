@@ -115,12 +115,11 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
     public void render(Graphics2D g, double interpolation) {
         final int blockWidth = gameState.getBlockWidth();
         // draw blocks as they are on the tile field
-
-        g.setColor(BlockColor.BLUE.getColor());
+        /*g.setColor(BlockColor.BLUE.getColor());
         g.setStroke(new BasicStroke(2));
         g.fillRect(tileCoords.getX() * blockWidth + 20,
                 tileCoords.getY() * blockWidth + 20,
-                blockWidth, blockWidth);
+                blockWidth, blockWidth);*/
 
         double rotationAngle
                 = getGlobalTransform().getRotation().getAngle();

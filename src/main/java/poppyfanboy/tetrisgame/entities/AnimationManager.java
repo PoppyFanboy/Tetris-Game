@@ -16,6 +16,12 @@ import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
  * after they are removed from the game. The objects are identified by their
  * hash code, so you need to override it to something meaningful in order to
  * guarantee performance of the animation gym.
+ *
+ * I thought that it might be a good idea to implement a single general
+ * method for each operation, instead of implementing the same operation for
+ * each type object, as it is now. But as it turns out, the former approach
+ * is even less concise and readable, since you have to cast objects and
+ * correctly throw exceptions in case an object of wrong type is passed.
  */
 class AnimationManager {
     private HashMap<Animated2D,
@@ -252,9 +258,11 @@ class AnimationManager {
     }
 }
 
-enum EntityType {
+// types of object that can be added to the animation gym
+enum ObjectType {
     ACTIVE_SHAPE, LOCKED_BLOCK
 }
+// available types of animation for each type of object
 enum ActiveShapeAnimationType {
     DROP, WALL_KICK, ROTATION, LEFT_RIGHT
 }
