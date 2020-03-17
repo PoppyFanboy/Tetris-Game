@@ -74,15 +74,19 @@ public final class AnimatedObject<T, K extends Enum<K>> {
                     endHandler));
             return;
         }
-
+        AnimationWrapper<T> newAnimation = endHandler == null
+                ? new AnimationWrapper<>(object, animation)
+                : new AnimationWrapper<>(object, animation, endHandler);
         if (animations.containsKey(animationType)) {
-            animations.get(animationType)
-                    .interrupt(AnimationEndReason.INTERRUPTED_BY_ANIMATION);
+            AnimationWrapper<T> oldAnimation = animations.get(animationType);
+            if (!oldAnimation.conflicts(newAnimation)) {
+                newAnimation = oldAnimation.affect(newAnimation);
+            } else {
+                oldAnimation.interrupt(
+                        AnimationEndReason.INTERRUPTED_BY_ANIMATION);
+            }
         }
-        animations.put(animationType,
-                endHandler == null
-                    ? new AnimationWrapper<>(object, animation)
-                    : new AnimationWrapper<>(object, animation, endHandler));
+        animations.put(animationType, newAnimation);
     }
 
     public void addCallback(K animationType, AnimationEndHandler endHandler) {

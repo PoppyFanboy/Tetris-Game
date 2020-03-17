@@ -12,6 +12,9 @@ import static java.lang.Math.min;
  */
 public class HVLinearAnimation extends Animation<Animated2D> {
     private final double startCoords, endCoords;
+    private final int defaultDuration;
+    private final double defaultShift;
+
     private int duration;
     private boolean isHorizontal;
 
@@ -24,6 +27,8 @@ public class HVLinearAnimation extends Animation<Animated2D> {
         this.startCoords = startCoords;
         this.endCoords = endCoords;
         this.isHorizontal = isHorizontal;
+        this.defaultShift = defaultShift;
+        this.defaultDuration = duration;
 
         double distance = Math.abs(endCoords - startCoords);
         this.duration
@@ -36,8 +41,8 @@ public class HVLinearAnimation extends Animation<Animated2D> {
         double progress = duration == 0
                 ? 1.0
                 : (currentDuration + interpolation) / duration;
-        double currCoords
-                = startCoords * (1 - progress) + endCoords * progress;
+        double currCoords = getCurrentCoords(startCoords, endCoords,
+                currentDuration, duration, interpolation);
         if (isHorizontal) {
             // y coordinate remains unchanged
             object.setCoords(new DoubleVector(
@@ -64,10 +69,28 @@ public class HVLinearAnimation extends Animation<Animated2D> {
         }
     }
 
-    public HVLinearAnimation changeDuration(int newDuration,
-            double defaultShift) {
-        return new HVLinearAnimation(startCoords, endCoords, newDuration,
-                defaultShift, isHorizontal);
+    @Override
+    public Animation<Animated2D> affect(int thisDuration,
+            Animation<Animated2D> other) {
+        if (!(other instanceof HVLinearAnimation)) {
+            return other;
+        }
+        HVLinearAnimation otherAnimation = (HVLinearAnimation) other;
+
+        if (this.isHorizontal != otherAnimation.isHorizontal
+                || this.defaultShift != otherAnimation.defaultShift) {
+            return otherAnimation;
+        }
+
+        double currentCoords = getCurrentCoords(this.startCoords,
+                this.endCoords, thisDuration, this.duration, 0.0);
+        return new HVLinearAnimation(currentCoords, otherAnimation.endCoords,
+                otherAnimation.defaultDuration, defaultShift, isHorizontal);
+    }
+
+    @Override
+    public boolean conflicts(int thisDuration, Animation<Animated2D> other) {
+        return false;
     }
 
     public static HVLinearAnimation getHorizontalAnimation(
@@ -82,5 +105,14 @@ public class HVLinearAnimation extends Animation<Animated2D> {
             double defaultShift) {
         return new HVLinearAnimation(startCoords, endCoords,
                 duration, defaultShift, false);
+    }
+
+    private static double getCurrentCoords(double startCoords,
+            double endCoords, int currentDuration, int duration,
+            double interpolation) {
+        double progress = duration == 0
+                ? 1.0
+                : (currentDuration + interpolation) / duration;
+        return startCoords * (1 - progress) + endCoords * progress;
     }
 }

@@ -147,6 +147,9 @@ public class Game implements Runnable {
         Graphics2D g = (Graphics2D) bs.getDrawGraphics();
         g.setRenderingHint(RenderingHints.KEY_RENDERING,
                 RenderingHints.VALUE_RENDER_QUALITY);
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+
         // clear the screen
         g.clearRect(0, 0, width, height);
         if (currentState != null) {

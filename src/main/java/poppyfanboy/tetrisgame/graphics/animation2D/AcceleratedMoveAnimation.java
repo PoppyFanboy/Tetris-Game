@@ -4,7 +4,7 @@ import poppyfanboy.tetrisgame.graphics.Animation;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 
 public class AcceleratedMoveAnimation extends Animation<Animated2D> {
-    private static final double ACCELERATION = 0.25;
+    private static final double ACCELERATION = 0.35;
 
     private final DoubleVector startCoords, endCoords;
     private double initialSpeed;
@@ -20,7 +20,8 @@ public class AcceleratedMoveAnimation extends Animation<Animated2D> {
     public void perform(Animated2D object, int currentDuration,
             double interpolation) {
         double currentDistance
-                = getDistance(currentDuration, initialSpeed, ACCELERATION);
+                = getDistance(currentDuration + interpolation, initialSpeed,
+                ACCELERATION);
         if (currentDistance < endCoords.subtract(startCoords).length()) {
             object.setCoords(startCoords.add(endCoords
                     .subtract(startCoords).normalize()

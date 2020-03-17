@@ -49,7 +49,17 @@ public enum Rotation {
      * value lies on the [-PI, PI) interval.
      */
     public double getAngle() {
-        return normalizeAngle(ordinal() * PI / 2);
+        switch (this) {
+            case INITIAL:
+                return 0;
+            case RIGHT:
+                return Math.PI / 2;
+            case UPSIDE_DOWN:
+                return -Math.PI;
+            case LEFT:
+                return -Math.PI / 2;
+        }
+        return 0;
     }
 
     /**

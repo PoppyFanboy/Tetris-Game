@@ -9,7 +9,10 @@ import poppyfanboy.tetrisgame.util.Rotation;
 
 public class RotationAnimation extends Animation<Animated2D> {
     private final double startAngle, endAngle;
-    private final int duration;
+    private final int defaultDuration;
+    private final double defaultAngle;
+
+    private int duration;
     private final boolean isClockwise;
 
     /**
@@ -20,15 +23,9 @@ public class RotationAnimation extends Animation<Animated2D> {
     public RotationAnimation(double startAngle, double endAngle,
             boolean isClockwise, int duration, double defaultAngle) {
         double progress = abs(endAngle - startAngle) / defaultAngle;
+        this.defaultDuration = duration;
+        this.defaultAngle = defaultAngle;
         this.duration = (int) max((min(progress, 1.0) * duration), 1);
-        this.startAngle = startAngle;
-        this.endAngle = endAngle;
-        this.isClockwise = isClockwise;
-    }
-
-    public RotationAnimation(double startAngle, double endAngle,
-            boolean isClockwise, int duration) {
-        this.duration = duration;
         this.startAngle = startAngle;
         this.endAngle = endAngle;
         this.isClockwise = isClockwise;
@@ -67,30 +64,34 @@ public class RotationAnimation extends Animation<Animated2D> {
      * 2} multiple as the ending angle and the current angle (according to the
      * {@code currentDuration} argument) as the starting angle.
      */
-    public Animation<Animated2D> combine(int currentDuration,
+    @Override
+    public Animation<Animated2D> affect(int thisDuration,
             Animation<Animated2D> other) {
         // but in general the other animation does not necessarily has to be of
         // class RotateAnimation
         if (!(other instanceof RotationAnimation)) {
-            return this;
+            return other;
         }
-        RotationAnimation otherRotationAnimation = (RotationAnimation) other;
-        if (this.isClockwise == otherRotationAnimation.isClockwise) {
-            double otherAngle = Math.abs(otherRotationAnimation.endAngle
-                    - otherRotationAnimation.startAngle);
-            return new RotationAnimation(this.startAngle,
-                    this.endAngle + otherAngle, isClockwise, duration);
+        RotationAnimation otherAnimation = (RotationAnimation) other;
+        double currentAngle = getCurrentAngle(this.startAngle, this.endAngle,
+                this.isClockwise, thisDuration, defaultDuration, 0.0);
+
+        if (this.isClockwise == otherAnimation.isClockwise) {
+            return new RotationAnimation(currentAngle,
+                    otherAnimation.endAngle, isClockwise,
+                    otherAnimation.defaultDuration,
+                    otherAnimation.defaultAngle);
         } else {
-            double currentAngle = Rotation.normalizeAngle(
-                    getCurrentAngle(startAngle, endAngle, isClockwise,
-                    currentDuration, duration, 0.0));
-            // find the closest Math.PI / 2 multiple
-            double newEndAngle = isClockwise
-                ? Math.floor(currentAngle / (Math.PI / 2)) * (Math.PI / 2)
-                : Math.ceil(currentAngle / (Math.PI / 2)) * (Math.PI / 2);
-            return new RotationAnimation(currentAngle, newEndAngle,
-                    !isClockwise, duration, Math.PI / 2);
+            return new RotationAnimation(currentAngle,
+                    otherAnimation.endAngle, !isClockwise,
+                    otherAnimation.defaultDuration,
+                    otherAnimation.defaultAngle);
         }
+    }
+
+    @Override
+    public boolean conflicts(int thisDuration, Animation<Animated2D> other) {
+        return false;
     }
 
     private static double getCurrentAngle(double startAngle, double endAngle,
@@ -99,10 +100,12 @@ public class RotationAnimation extends Animation<Animated2D> {
         double progress = duration == 0
                 ? 1.0
                 : (currentDuration + interpolation) / duration;
-        return !isClockwise && endAngle >= startAngle
+        double nonNormalized = !isClockwise && endAngle >= startAngle
                 || isClockwise && endAngle <= startAngle
             ? startAngle + (endAngle - startAngle) * progress
             : startAngle
                 + (2 * Math.PI - Math.abs(endAngle - startAngle)) * progress;
+
+        return Rotation.normalizeAngle(nonNormalized);
     }
 }

@@ -39,6 +39,14 @@ public class AnimationWrapper<T> {
         endHandlers = new ArrayList<>(Collections.singleton(endHandler));
     }
 
+    private AnimationWrapper(T object, Animation<T> animation,
+            boolean isFinished, List<AnimationEndHandler> endHandlers) {
+        this.animation = animation;
+        this.object = object;
+        this.endHandlers = endHandlers;
+        this.isFinished = isFinished;
+    }
+
     public void tick() {
         if (isFinished) {
             return;
@@ -110,6 +118,28 @@ public class AnimationWrapper<T> {
     public Animation<T> getAnimation() {
         return animation;
     }
+
+    public boolean conflicts(AnimationWrapper<T> other) {
+        return this.animation.conflicts(this.duration, other.animation);
+    }
+
+    public AnimationWrapper<T> affect(AnimationWrapper<T> other) {
+        if (this.object != other.object) {
+            return other;
+        }
+        Animation<T> affectedAnimation = this.animation.affect(this.duration,
+                other.animation);
+        List<AnimationEndHandler> newEndHandlers = new ArrayList<>();
+        if (!this.isFinished && this.endHandlers != null) {
+            newEndHandlers.addAll(this.endHandlers);
+        }
+        if (!other.isFinished && other.endHandlers != null) {
+            newEndHandlers.addAll(other.endHandlers);
+        }
+        return new AnimationWrapper<>(object, affectedAnimation,
+                other.isFinished, newEndHandlers);
+    }
+
 
     public T getObject() {
         return object;
