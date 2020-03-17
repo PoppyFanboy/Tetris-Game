@@ -167,21 +167,24 @@ public class Util {
     @SafeVarargs
     public static <E extends Enum<?>> E getRandomInstance(
             Random random, Class<? extends E>... enums) {
-        int possibleOptionsCount = 0;
-        int[] enumLengths = new int[enums.length];
+        int randomEnumIndex = -1, randomInstanceIndex = -1;
+        int watchedOptionsCount = 0;
         for (int i = 0; i < enums.length; i++) {
-            enumLengths[i]
-                    = enums[i].getEnumConstants().length;
-            possibleOptionsCount
-                    += enums[i].getEnumConstants().length;
+            int instancesCount = enums[i].getEnumConstants().length;
+            watchedOptionsCount += instancesCount;
+            if (random.nextDouble()
+                    <= (double) instancesCount / watchedOptionsCount) {
+                randomEnumIndex = i;
+                randomInstanceIndex = random.nextInt(instancesCount);
+            } else {
+                break;
+            }
         }
-        int randomInstanceIndex = random.nextInt(possibleOptionsCount);
-        int randomEnumIndex = 0;
-        while (randomInstanceIndex >= enumLengths[randomEnumIndex]) {
-            randomInstanceIndex -= enumLengths[randomEnumIndex];
-            randomEnumIndex++;
+        if (randomEnumIndex != -1 && randomInstanceIndex != -1) {
+            return
+                enums[randomEnumIndex].getEnumConstants()[randomInstanceIndex];
+        } else {
+            return null;
         }
-        return enums[randomEnumIndex]
-                .getEnumConstants()[randomInstanceIndex];
     }
 }

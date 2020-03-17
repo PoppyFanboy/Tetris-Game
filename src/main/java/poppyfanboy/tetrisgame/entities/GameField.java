@@ -220,14 +220,14 @@ public class GameField extends Entity implements TileField, Controllable {
                 droppedBlocksOldKeys = Collections.emptyList();
 
                 if (spawnNewActiveShape()) {
-                    if (lastInputs == null
-                            || !lastInputs.containsKey(InputKey.ARROW_DOWN)
-                                    || !lastInputs
-                                        .get(InputKey.ARROW_DOWN).isActive()) {
-                        statesQueue.offer(SHAPE_SOFT_DROP);
+                    if (lastInputs != null
+                            && lastInputs.containsKey(InputKey.ARROW_DOWN)
+                            && lastInputs
+                                    .get(InputKey.ARROW_DOWN).isActive()) {
+                        statesQueue.offer(SHAPE_FORCED_DROP);
                         return;
                     }
-                    statesQueue.offer(SHAPE_FORCED_DROP);
+                    statesQueue.offer(SHAPE_SOFT_DROP);
                 } else {
                     statesQueue.offer(SHAPE_FELL);
                 }
