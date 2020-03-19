@@ -1,5 +1,11 @@
 package poppyfanboy.tetrisgame.util;
 
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.geom.AffineTransform;
+import java.awt.image.AffineTransformOp;
+import java.awt.image.BufferedImage;
 import java.util.Random;
 
 import static java.lang.Math.round;
@@ -172,12 +178,9 @@ public class Util {
         for (int i = 0; i < enums.length; i++) {
             int instancesCount = enums[i].getEnumConstants().length;
             watchedOptionsCount += instancesCount;
-            if (random.nextDouble()
-                    <= (double) instancesCount / watchedOptionsCount) {
+            if (random.nextInt(watchedOptionsCount) < instancesCount) {
                 randomEnumIndex = i;
                 randomInstanceIndex = random.nextInt(instancesCount);
-            } else {
-                break;
             }
         }
         if (randomEnumIndex != -1 && randomInstanceIndex != -1) {
@@ -186,5 +189,163 @@ public class Util {
         } else {
             return null;
         }
+    }
+
+    public static BufferedImage scaleImage(BufferedImage image, double scaleX,
+            double scaleY, boolean bilinearInterpolation) {
+        if (image == null) {
+            return null;
+        }
+        scaleX =  Math.max(scaleX, 0);
+        scaleY =  Math.max(scaleY, 0);
+
+        BufferedImage scaled = new BufferedImage(
+                (int) Math.ceil(image.getWidth() * scaleX),
+                (int) Math.ceil(image.getHeight() * scaleY),
+                BufferedImage.TYPE_INT_ARGB_PRE);
+
+        if (scaleX != 1 || scaleY != 1) {
+            AffineTransform transform
+                    = AffineTransform.getScaleInstance(scaleX, scaleY);
+            AffineTransformOp op = new AffineTransformOp(transform,
+                    bilinearInterpolation
+                            ? AffineTransformOp.TYPE_BILINEAR
+                            : AffineTransformOp.TYPE_NEAREST_NEIGHBOR);
+            op.filter(image, scaled);
+        } else {
+            scaled.getGraphics().drawImage(image, 0, 0, null);
+        }
+        return scaled;
+    }
+
+    public static BufferedImage resizeImage(BufferedImage image, int newWidth,
+            int newHeight, boolean bilinearInterpolation) {
+        if (image == null) {
+            return null;
+        }
+        newWidth = Math.max(newWidth, 0);
+        newHeight = Math.max(newHeight, 0);
+        return scaleImage(image, (double) newWidth / image.getWidth(),
+                (double) newHeight / image.getHeight(), bilinearInterpolation);
+    }
+
+    public static BufferedImage mirrorImage(BufferedImage image,
+            boolean horizontal, boolean vertical) {
+        if (image == null) {
+             return null;
+        }
+        BufferedImage mirrored = new BufferedImage(image.getWidth(),
+                image.getHeight(), BufferedImage.TYPE_INT_ARGB_PRE);
+        // mirror
+        AffineTransform transform = AffineTransform.getScaleInstance(
+                vertical ? -1 : 1,
+                horizontal ? -1 : 1);
+        // shift back
+        if (horizontal) {
+            transform.translate(0, -image.getHeight());
+        }
+        if (vertical) {
+            transform.translate(-image.getWidth(), 0);
+        }
+        Graphics2D g2d = (Graphics2D) mirrored.getGraphics();
+        g2d.drawImage(image, transform, null);
+        return mirrored;
+    }
+
+    public static BufferedImage rotateImage(BufferedImage image, int quadrant) {
+        if (image == null) {
+            return null;
+        }
+        quadrant = ((quadrant % 4) + 4) % 4;
+
+        BufferedImage rotated = new BufferedImage(image.getWidth(),
+                image.getHeight(), BufferedImage.TYPE_INT_ARGB_PRE);
+        AffineTransform transform = AffineTransform.getQuadrantRotateInstance(
+                quadrant, image.getHeight() / 2.0,
+                image.getWidth() / 2.0);
+        Graphics2D g2d = (Graphics2D) rotated.getGraphics();
+        g2d.drawImage(image, transform, null);
+        return rotated;
+    }
+
+
+    /**
+     * Fills the {@code width x height} tiled area with tile images. If some
+     * of the images for the tiles are missing, just pass {@code null}
+     * instead of those. Missing images will be replaced with {@code center}
+     * image, if possible.
+     *
+     * If either the width or height is less than 2 tiles, the image is tiled
+     * using solely the {@code center} images.
+     *
+     * All images will be scaled to the {@code blockWidth x blockWidth} size,
+     * if they have a different size.
+     */
+    public static BufferedImage fillTiles(int width, int height,
+            int blockWidth, BufferedImage upperLeftCorner,
+            BufferedImage leftSide, BufferedImage center) {
+        if (width < 0 || height < 0) {
+            throw new IllegalArgumentException(String.format("Width and"
+                + " height must be non-negative integers. Got: width = %d,"
+                + " height = %d", width, height));
+        }
+        center = resizeImage(center, blockWidth, blockWidth, false);
+
+        upperLeftCorner
+                = resizeImage(upperLeftCorner, blockWidth, blockWidth, false);
+        BufferedImage upperRightCorner
+                = mirrorImage(upperLeftCorner, false, true);
+        BufferedImage bottomRightCorner
+                = mirrorImage(upperLeftCorner, true, true);
+        BufferedImage bottomLeftCorner
+                = mirrorImage(upperLeftCorner, true, false);
+
+        leftSide = resizeImage(leftSide, blockWidth, blockWidth, false);
+        BufferedImage rightSide = Util.rotateImage(leftSide, 2);
+        BufferedImage upperSide = Util.rotateImage(leftSide, 1);
+        BufferedImage bottomSide = Util.rotateImage(leftSide, 3);
+
+        // center tile does not need to be rotated or mirrored
+        if (upperLeftCorner == null || width < 2 || height < 2) {
+            upperLeftCorner = center;
+        }
+        if (leftSide == null || width < 2 || height < 2) {
+            leftSide = center;
+        }
+
+        BufferedImage tiledImage = new BufferedImage(width * blockWidth,
+                height * blockWidth, BufferedImage.TYPE_INT_ARGB_PRE);
+        Graphics g = tiledImage.getGraphics();
+
+        // corners
+        if (upperLeftCorner != null) {
+
+            g.drawImage(upperLeftCorner, 0, 0, null);
+            g.drawImage(upperRightCorner, (width - 1) * blockWidth, 0, null);
+            g.drawImage(bottomRightCorner,
+                    (width - 1) * blockWidth, (height - 1) * blockWidth, null);
+            g.drawImage(bottomLeftCorner, 0, (height - 1) * blockWidth, null);
+        }
+
+        // upper/bottom sides
+        for (int i = 1; i < width - 1; i++) {
+            g.drawImage(upperSide, i * blockWidth, 0, null);
+            g.drawImage(bottomSide, i * blockWidth,
+                    (height - 1) * blockWidth, null);
+        }
+        // left/right sides
+        for (int i = 1; i < height - 1; i++) {
+            g.drawImage(leftSide, 0, i * blockWidth, null);
+            g.drawImage(rightSide,
+                    (width - 1) * blockWidth, i * blockWidth, null);
+        }
+
+        // center pieces
+        for (int x = 1; x < width - 1; x++) {
+            for (int y = 1; y < height - 1; y++) {
+                g.drawImage(center, x * blockWidth, y * blockWidth, null);
+            }
+        }
+        return tiledImage;
     }
 }

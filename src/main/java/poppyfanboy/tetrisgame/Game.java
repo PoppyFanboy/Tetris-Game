@@ -10,6 +10,7 @@ import poppyfanboy.tetrisgame.graphics.Display;
 import poppyfanboy.tetrisgame.input.KeyManager;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.states.MenuState;
+import poppyfanboy.tetrisgame.states.Resolution;
 import poppyfanboy.tetrisgame.states.State;
 
 /**
@@ -26,8 +27,9 @@ public class Game implements Runnable {
     private static final int MAX_FRAMESKIP = 5;
 
     private Display display;
-    private int width, height, blockWidth;
-    private String title;
+    private Resolution resolution;
+
+    private final String title;
 
     // separate thread for the game state
     private Thread thread;
@@ -41,13 +43,8 @@ public class Game implements Runnable {
     // key manager
     private KeyManager keyManager;
 
-    // assets
-    private Assets assets;
-
-    public Game(String title, int width, int height, int blockWidth) {
-        this.width = width;
-        this.height = height;
-        this.blockWidth = blockWidth;
+    public Game(String title, Resolution resolution) {
+        this.resolution = resolution;
         this.title = title;
         keyManager = new KeyManager();
     }
@@ -65,9 +62,6 @@ public class Game implements Runnable {
     }
 
     public synchronized void stop() {
-        // dispose resources
-        assets.close();
-
         // the game is already stopped
         if (!running) {
             return;
@@ -82,10 +76,10 @@ public class Game implements Runnable {
 
     // initialize the graphics, load the assets, create the game states
     private void init() throws IOException {
-        display = new Display(title, width, height);
+        display
+            = new Display(title, resolution.getWidth(), resolution.getHeight());
         display.getFrame().addKeyListener(keyManager);
-        assets = new Assets(128, 32, 8);
-        gameState = new GameState(this, blockWidth);
+        gameState = new GameState(this);
         menuState = new MenuState(this);
         currentState = gameState;
     }
@@ -147,11 +141,9 @@ public class Game implements Runnable {
         Graphics2D g = (Graphics2D) bs.getDrawGraphics();
         g.setRenderingHint(RenderingHints.KEY_RENDERING,
                 RenderingHints.VALUE_RENDER_QUALITY);
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                RenderingHints.VALUE_ANTIALIAS_ON);
 
         // clear the screen
-        g.clearRect(0, 0, width, height);
+        g.clearRect(0, 0, resolution.getWidth(), resolution.getHeight());
         if (currentState != null) {
             currentState.render(g, interpolation);
         }
@@ -159,19 +151,11 @@ public class Game implements Runnable {
         g.dispose();
     }
 
-    public Assets getAssets() {
-        return assets;
-    }
-
     public KeyManager getKeyManager() {
         return keyManager;
     }
 
-    public int getWidth() {
-        return width;
-    }
-
-    public int getHeight() {
-        return height;
+    public Resolution getResolution() {
+        return resolution;
     }
 }

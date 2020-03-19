@@ -34,8 +34,4 @@ public abstract class State {
     public Game getGame() {
         return game;
     }
-
-    public Assets getAssets() {
-        return game.getAssets();
-    }
 }

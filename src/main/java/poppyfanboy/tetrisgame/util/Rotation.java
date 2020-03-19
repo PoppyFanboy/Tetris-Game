@@ -62,6 +62,20 @@ public enum Rotation {
         return 0;
     }
 
+    public int getQuadrant() {
+        switch (this) {
+            case INITIAL:
+                return 0;
+            case RIGHT:
+                return 3;
+            case UPSIDE_DOWN:
+                return 2;
+            case LEFT:
+                return 1;
+        }
+        return 0;
+    }
+
     /**
      * Returns a radian angle between the two given rotations (from the
      * first to the second).

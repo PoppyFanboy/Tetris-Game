@@ -28,7 +28,7 @@ dependencies {
 
 application {
     // Define the main class for the application.
-    mainClassName = 'suzukon.tetrisgame.Main'
+    mainClassName = 'poppyfanboy.tetrisgame.Main'
     applicationDefaultJvmArgs = [ '-Dswing.handleTopLevelPaint=false' ]
 }
 
@@ -39,6 +39,6 @@ test {
 
 jar {
     manifest {
-        attributes 'Main-Class' : 'suzukon.tetrisgame.Main'
+        attributes 'Main-Class' : 'poppyfanboy.tetrisgame.Main'
     }
 }

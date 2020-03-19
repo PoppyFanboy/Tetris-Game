@@ -1,6 +1,7 @@
 package poppyfanboy.tetrisgame.entities;
 
 import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.util.AbstractQueue;
 import java.util.ArrayDeque;
@@ -17,6 +18,7 @@ import java.util.Random;
 import java.util.TreeMap;
 
 import poppyfanboy.tetrisgame.Game;
+import poppyfanboy.tetrisgame.graphics.Assets;
 import poppyfanboy.tetrisgame.graphics.animation2D.RotationAnimation;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
@@ -473,7 +475,7 @@ public class GameField extends Entity implements TileField, Controllable {
         int height = heightInBlocks * blockWidth;
         DoubleVector rotationPivot = coords.add(width / 2.0, height / 2.0);
 
-        return new Transform(coords)
+        return new Transform(coords.add(blockWidth, blockWidth))
             .combine(Transform.getRotation(rotationAngle, rotationPivot));
     }
 
@@ -522,21 +524,21 @@ public class GameField extends Entity implements TileField, Controllable {
     public void render(Graphics2D g, double interpolation) {
         animationManager.perform(interpolation);
 
-        Transform globalTransform = getGlobalTransform();
-        DoubleVector coords
-                = globalTransform.apply(new DoubleVector(0, 0));
-
         final int blockWidth = gameState.getBlockWidth();
-        BufferedImage wallBlock = gameState.getAssets().getWallBlock();
-        for (int row = 0; row < heightInBlocks; row++) {
-            for (int col = 0; col < widthInBlocks; col++) {
-                DoubleVector blockCoords
-                        = coords.add(col * blockWidth, row * blockWidth);
-                g.drawImage(wallBlock, (int) blockCoords.getX(),
-                        (int) blockCoords.getY(),
-                        blockWidth, blockWidth, null);
-            }
-        }
+        Transform globalTransform = getGlobalTransform();
+        AffineTransform oldTransform = g.getTransform();
+        g.setTransform(globalTransform.getTransform());
+
+        BufferedImage brickWall
+                = gameState.getAssets().getSprite(Assets.SpriteType.BRICK_WALL);
+        g.drawImage(brickWall, 0, 0, null);
+
+
+        BufferedImage frame = gameState.getAssets()
+                .getSprite(Assets.SpriteType.GAME_FIELD_FRAME);
+        g.drawImage(frame, -blockWidth, -blockWidth, null);
+
+        g.setTransform(oldTransform);
 
         if (activeShape != null) {
             activeShape.render(g, interpolation);

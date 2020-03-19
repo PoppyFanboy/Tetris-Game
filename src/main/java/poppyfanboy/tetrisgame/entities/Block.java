@@ -70,7 +70,7 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
         final int blockWidth = gameState.getBlockWidth();
 
         return new AcceleratedMoveAnimation(coords,
-                tileCoords.times(blockWidth).toDouble(), 0.0);
+                tileCoords.times(blockWidth).toDouble(), 0.0, blockWidth);
     }
 
     public BlockBreakAnimation createBlockBreakAnimation(int duration) {
@@ -129,10 +129,7 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
         Composite oldComposite = g.getComposite();
 
         Transform globalTransform = getGlobalTransform();
-        AffineTransform transform = new AffineTransform(
-            globalTransform.matrix(0, 0), globalTransform.matrix(1, 0),
-            globalTransform.matrix(0, 1), globalTransform.matrix(1, 1),
-            globalTransform.matrix(0, 2), globalTransform.matrix(1, 2));
+        AffineTransform transform = globalTransform.getTransform();
         g.setTransform(transform);
 
         Assets assets = gameState.getAssets();
@@ -140,7 +137,7 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
                 = assets.getColoredBlockLeft(rotationAngle, blockColor);
         BufferedImage right
                 = assets.getColoredBlockRight(rotationAngle, blockColor);
-        int n = assets.getLightingSamplesCount();
+        int n = Assets.LIGHTING_SAMPLES_COUNT;
         double progress = (n * (Rotation.normalizeAngle(rotationAngle)
                 + Math.PI) / (2 * Math.PI)) % 1;
 
@@ -225,11 +222,12 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public void setOpacity(double newOpacity) {
+        newOpacity =  Math.min(Math.max(newOpacity, 0), 1);
+
         if (newOpacity < 0 || newOpacity > 1.0) {
             throw new IllegalArgumentException(String.format(
                     "The value of the opacity must lie within the"
-                            + " [0, 1] interval. Got: newOpacity = %f.",
-                    newOpacity));
+                    + " [0, 1] interval. Got: newOpacity = %f.", newOpacity));
         }
         opacity = newOpacity;
     }
