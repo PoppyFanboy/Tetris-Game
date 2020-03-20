@@ -130,7 +130,8 @@ public class GameField extends Entity implements TileField, Controllable {
         }
 
         public boolean shapeFalling() {
-            return this == SHAPE_SOFT_DROP || this == SHAPE_FORCED_DROP;
+            return this == SHAPE_SOFT_DROP || this == SHAPE_FORCED_DROP
+                    || this == SHAPE_SPAWN_READY;
         }
 
         public boolean shapeControllable() {
@@ -222,13 +223,6 @@ public class GameField extends Entity implements TileField, Controllable {
                 droppedBlocksOldKeys = Collections.emptyList();
 
                 if (spawnNewActiveShape()) {
-                    if (lastInputs != null
-                            && lastInputs.containsKey(InputKey.ARROW_DOWN)
-                            && lastInputs
-                                    .get(InputKey.ARROW_DOWN).isActive()) {
-                        statesQueue.offer(SHAPE_FORCED_DROP);
-                        return;
-                    }
                     statesQueue.offer(SHAPE_SOFT_DROP);
                 } else {
                     statesQueue.offer(SHAPE_FELL);
@@ -237,6 +231,13 @@ public class GameField extends Entity implements TileField, Controllable {
 
             case SHAPE_SOFT_DROP:
             case SHAPE_FORCED_DROP:
+                state = SHAPE_SOFT_DROP;
+                if (lastInputs != null
+                        && lastInputs.containsKey(InputKey.ARROW_DOWN)
+                        && lastInputs.get(InputKey.ARROW_DOWN).isActive()) {
+                    state = SHAPE_FORCED_DROP;
+                }
+
                 if (Shape.fits(activeShape, activeShape.getShapeType(),
                         activeShape.getTileCoords().add(iVect(0, 1)),
                         activeShape.getRotation(), this)) {
@@ -642,8 +643,7 @@ public class GameField extends Entity implements TileField, Controllable {
         if (shapeControllable && (rotationDirection == Rotation.LEFT
                     || rotationDirection == Rotation.RIGHT)) {
             boolean isClockwise = rotationDirection == Rotation.LEFT;
-            double newAngle = activeShape.getRotation().getAngle()
-                    + (isClockwise ? -Math.PI / 2 : Math.PI / 2);
+            double newAngle = isClockwise ? -Math.PI / 2 : Math.PI / 2;
             Rotation newRotation
                     = activeShape.getRotation().add(rotationDirection);
 

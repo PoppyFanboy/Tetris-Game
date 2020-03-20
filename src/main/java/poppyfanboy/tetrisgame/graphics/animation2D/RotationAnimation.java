@@ -1,5 +1,7 @@
 package poppyfanboy.tetrisgame.graphics.animation2D;
 
+import static java.lang.Math.cos;
+import static java.lang.Math.sin;
 import poppyfanboy.tetrisgame.graphics.Animation;
 
 import static java.lang.Math.abs;
@@ -9,11 +11,11 @@ import poppyfanboy.tetrisgame.util.Rotation;
 
 public class RotationAnimation extends Animation<Animated2D> {
     private final double startAngle, endAngle;
-    private final int defaultDuration;
-    private final double defaultAngle;
 
     private int duration;
     private final boolean isClockwise;
+    private final double defaultAngle;
+    private final int defaultDuration;
 
     /**
      * {@code defaultAngle} is the default angle at which the
@@ -24,11 +26,11 @@ public class RotationAnimation extends Animation<Animated2D> {
             boolean isClockwise, int duration, double defaultAngle) {
         double progress = abs(endAngle - startAngle) / defaultAngle;
         this.defaultDuration = duration;
-        this.defaultAngle = defaultAngle;
         this.duration = (int) max((min(progress, 1.0) * duration), 1);
         this.startAngle = startAngle;
         this.endAngle = endAngle;
         this.isClockwise = isClockwise;
+        this.defaultAngle = defaultAngle;
     }
 
     public double getStartAngle() {
@@ -76,16 +78,36 @@ public class RotationAnimation extends Animation<Animated2D> {
         double currentAngle = getCurrentAngle(this.startAngle, this.endAngle,
                 this.isClockwise, thisDuration, defaultDuration, 0.0);
 
+        double newStart = currentAngle;
+        double newEnd = this.endAngle
+                + (otherAnimation.endAngle - otherAnimation.startAngle);
+
         if (this.isClockwise == otherAnimation.isClockwise) {
-            return new RotationAnimation(currentAngle,
-                    otherAnimation.endAngle, isClockwise,
-                    otherAnimation.defaultDuration,
-                    otherAnimation.defaultAngle);
+            return new RotationAnimation(newStart, newEnd, isClockwise,
+                otherAnimation.defaultDuration,
+                this.defaultAngle + otherAnimation.defaultAngle
+                        - Math.abs(currentAngle - startAngle));
         } else {
-            return new RotationAnimation(currentAngle,
-                    otherAnimation.endAngle, !isClockwise,
-                    otherAnimation.defaultDuration,
-                    otherAnimation.defaultAngle);
+            newStart = Rotation.normalizeAngle(newStart);
+            newEnd = Rotation.normalizeAngle(newEnd);
+
+            // rotate to the closest angle
+            if (!otherAnimation.isClockwise && Math.abs(newEnd - newStart)
+                    > Math.abs(newStart - newEnd - 2 * Math.PI)) {
+                newEnd += 2 * Math.PI;
+            }
+            if (otherAnimation.isClockwise && Math.abs(newEnd - newStart)
+                    > Math.abs(newStart - newEnd + 2 * Math.PI)) {
+                newEnd -= 2 * Math.PI;
+            }
+
+            if (cos(newStart) * sin(newEnd) - cos(newEnd) * sin(newStart) > 0) {
+                return new RotationAnimation(newStart, newEnd,
+                        !isClockwise, defaultDuration, defaultAngle);
+            } else {
+                return new RotationAnimation(newStart, newEnd,
+                        isClockwise, defaultDuration, defaultAngle);
+            }
         }
     }
 
@@ -100,12 +122,6 @@ public class RotationAnimation extends Animation<Animated2D> {
         double progress = duration == 0
                 ? 1.0
                 : (currentDuration + interpolation) / duration;
-        double nonNormalized = !isClockwise && endAngle >= startAngle
-                || isClockwise && endAngle <= startAngle
-            ? startAngle + (endAngle - startAngle) * progress
-            : startAngle
-                + (2 * Math.PI - Math.abs(endAngle - startAngle)) * progress;
-
-        return Rotation.normalizeAngle(nonNormalized);
+        return startAngle + (endAngle - startAngle) * progress;
     }
 }

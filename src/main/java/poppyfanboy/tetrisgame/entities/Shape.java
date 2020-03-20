@@ -149,11 +149,10 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
                 tileCoords.getX() * blockWidth, duration, blockWidth);
     }
 
-    public RotationAnimation createRotationAnimation(double endAngle,
+    public RotationAnimation createRotationAnimation(double angleShift,
             boolean isClockwise, int duration) {
-        rotationAngle = Rotation.normalizeAngle(rotationAngle);
         return new RotationAnimation(rotationAngle,
-                endAngle, isClockwise, duration, Math.PI / 2);
+                rotationAngle + angleShift, isClockwise, duration, Math.PI / 2);
 
     }
 
