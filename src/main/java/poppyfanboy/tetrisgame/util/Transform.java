@@ -10,34 +10,21 @@ import java.util.Arrays;
 public class Transform {
     private final DoubleVector translation;
     private final RotationTransform rotation;
-    private final double[] matrix;
 
     public Transform() {
         translation = new DoubleVector(0, 0);
         rotation = new RotationTransform();
-        matrix = generateTransformMatrix(rotation, translation);
     }
 
     public Transform(DoubleVector translation) {
         this.translation = translation;
         rotation = new RotationTransform();
-        matrix = generateTransformMatrix(rotation, translation);
     }
 
     public Transform(RotationTransform rotation,
             DoubleVector translation) {
         this.translation = translation;
         this.rotation = rotation;
-        matrix = generateTransformMatrix(rotation, translation);
-    }
-
-    private static double[] generateTransformMatrix(
-            RotationTransform rotation, DoubleVector translation) {
-        return new double[] {
-                rotation.getCos(), -rotation.getSin(), translation.getX(),
-                rotation.getSin(),  rotation.getCos(), translation.getY(),
-                0, 0, 1
-        };
     }
 
     public DoubleVector apply(DoubleVector v) {
@@ -63,6 +50,10 @@ public class Transform {
                 other.apply(this.translation));
     }
 
+    public Transform combine(double x, double y) {
+        return this.combine(new Transform(new DoubleVector(x, y)));
+    }
+
     public Transform combine(DoubleVector otherTranslation) {
         return combine(new Transform(otherTranslation));
     }
@@ -80,23 +71,10 @@ public class Transform {
         return rotation;
     }
 
-    /**
-     * Returns a matrix representation of the transform. The matrix
-     * has the following form:
-     * cosX -sinX xt
-     * sinX  cosX yt
-     * 0     0    1
-     * This method accesses the specific row and column of this matrix.
-     */
-    public double matrix(int row, int col) {
-        return matrix[row * 3 + col];
-    }
-
     public AffineTransform getTransform() {
-        return new AffineTransform(
-            matrix(0, 0), matrix(1, 0),
-            matrix(0, 1), matrix(1, 1),
-            matrix(0, 2), matrix(1, 2));
+        return new AffineTransform(rotation.getCos(), rotation.getSin(),
+                -rotation.getSin(), rotation.getCos(),
+                translation.getX(), translation.getY());
     }
 
     public static Transform getRotation(double angle, DoubleVector pivot) {

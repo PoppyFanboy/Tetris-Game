@@ -3,15 +3,11 @@ package poppyfanboy.tetrisgame;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferStrategy;
-
 import java.io.IOException;
-import poppyfanboy.tetrisgame.graphics.Assets;
+
 import poppyfanboy.tetrisgame.graphics.Display;
 import poppyfanboy.tetrisgame.input.KeyManager;
-import poppyfanboy.tetrisgame.states.GameState;
-import poppyfanboy.tetrisgame.states.MenuState;
-import poppyfanboy.tetrisgame.states.Resolution;
-import poppyfanboy.tetrisgame.states.State;
+import poppyfanboy.tetrisgame.states.*;
 
 /**
  * A game instance.

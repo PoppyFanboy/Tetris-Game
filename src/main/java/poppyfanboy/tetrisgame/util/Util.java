@@ -2,7 +2,6 @@ package poppyfanboy.tetrisgame.util;
 
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
@@ -97,9 +96,9 @@ public class Util {
         for (boolean[] row : matrix) {
             for (boolean element : row) {
                 if (element) {
-                    sb.append("* ");
+                    sb.append("b");
                 } else {
-                    sb.append(". ");
+                    sb.append(" ");
                 }
             }
             sb.append("\n");

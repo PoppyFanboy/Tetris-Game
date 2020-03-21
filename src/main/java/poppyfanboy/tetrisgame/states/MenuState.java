@@ -1,11 +1,8 @@
 package poppyfanboy.tetrisgame.states;
 
 import java.awt.Graphics2D;
-import java.util.EnumMap;
 
 import poppyfanboy.tetrisgame.Game;
-import poppyfanboy.tetrisgame.input.InputKey;
-import poppyfanboy.tetrisgame.input.KeyState;
 
 public class MenuState extends State {
     public MenuState(Game game) {

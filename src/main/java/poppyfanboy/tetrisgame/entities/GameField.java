@@ -18,9 +18,10 @@ import java.util.Random;
 import java.util.TreeMap;
 
 import poppyfanboy.tetrisgame.Game;
+import poppyfanboy.tetrisgame.states.GameState;
+
 import poppyfanboy.tetrisgame.graphics.Assets;
 import poppyfanboy.tetrisgame.graphics.animation2D.RotationAnimation;
-import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
 
@@ -57,8 +58,9 @@ public class GameField extends Entity implements TileField, Controllable {
     public static IntVector SPAWN_COORDINATES = iVect(2, 0);
 
     private GameState gameState;
+    private AnimationManager animationManager;
+    private NextShapeDisplay nextShapeDisplay;
     private EnumMap<InputKey, KeyState> lastInputs;
-    private AnimationManager animationManager= new AnimationManager();
 
     // graphics
     private Entity parentEntity;
@@ -71,6 +73,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
     private int widthInBlocks, heightInBlocks;
     private Shape activeShape;
+    private ShapeType nextShapeType;
     // blocks that were locked at the game field after some of the shapes
     // fell onto the bottom of the game field
     private NavigableMap<IntVector, Block> lockedBlocks
@@ -143,39 +146,6 @@ public class GameField extends Entity implements TileField, Controllable {
         }
     }
 
-    private static class StatesQueue extends AbstractQueue<GameFieldState> {
-        private Queue<GameFieldState> queue = new ArrayDeque<>();
-
-        @Override
-        public Iterator<GameFieldState> iterator() {
-            return queue.iterator();
-        }
-
-        @Override
-        public int size() {
-            return queue.size();
-        }
-
-        @Override
-        public boolean offer(GameFieldState gameFieldState) {
-            if (queue.isEmpty()
-                    || queue.peek().transitionPossible(gameFieldState)) {
-                return queue.offer(gameFieldState);
-            }
-            return false;
-        }
-
-        @Override
-        public GameFieldState poll() {
-            return queue.poll();
-        }
-
-        @Override
-        public GameFieldState peek() {
-            return queue.peek();
-        }
-    }
-
     /**
      * Creates an empty instance of a game field.
      *
@@ -193,6 +163,9 @@ public class GameField extends Entity implements TileField, Controllable {
 
         this.coords = coords;
         this.rotationAngle = 0;
+
+        animationManager = gameState.getAnimationManager();
+        nextShapeType = Util.getRandomInstance(random, TetrisShapeType.class);
     }
 
     /**
@@ -348,7 +321,8 @@ public class GameField extends Entity implements TileField, Controllable {
      * object.)
      */
     private boolean spawnNewActiveShape() {
-        ShapeType shapeType
+        ShapeType shapeType = nextShapeType;
+        nextShapeType
                 = Util.getRandomInstance(random, TetrisShapeType.class);
         BlockColor color
                 = Util.getRandomInstance(random, BlockColor.class);
@@ -361,6 +335,10 @@ public class GameField extends Entity implements TileField, Controllable {
         activeShape = new Shape(gameState, shapeType, Rotation.INITIAL,
                 SPAWN_COORDINATES, blockColors, this);
         animationManager.addActiveShape(activeShape);
+        if (nextShapeDisplay != null) {
+            nextShapeDisplay.setNextShape(nextShapeType);
+            nextShapeDisplay.startTransitionAnimation();
+        }
         return true;
     }
 
@@ -474,10 +452,10 @@ public class GameField extends Entity implements TileField, Controllable {
         int blockWidth = gameState.getBlockWidth();
         int width = widthInBlocks * blockWidth;
         int height = heightInBlocks * blockWidth;
-        DoubleVector rotationPivot = coords.add(width / 2.0, height / 2.0);
-
-        return new Transform(coords.add(blockWidth, blockWidth))
-            .combine(Transform.getRotation(rotationAngle, rotationPivot));
+        DoubleVector rotationPivot
+                = new DoubleVector(width / 2.0, height / 2.0);
+        return Transform.getRotation(rotationAngle, rotationPivot)
+                .combine(new Transform(coords));
     }
 
     @Override
@@ -523,12 +501,9 @@ public class GameField extends Entity implements TileField, Controllable {
 
     @Override
     public void render(Graphics2D g, double interpolation) {
-        animationManager.perform(interpolation);
-
         final int blockWidth = gameState.getBlockWidth();
-        Transform globalTransform = getGlobalTransform();
         AffineTransform oldTransform = g.getTransform();
-        g.setTransform(globalTransform.getTransform());
+        g.setTransform(getGlobalTransform().getTransform());
 
         BufferedImage brickWall
                 = gameState.getAssets().getSprite(Assets.SpriteType.BRICK_WALL);
@@ -552,17 +527,17 @@ public class GameField extends Entity implements TileField, Controllable {
     @Override
     public DoubleVector[] getVertices() {
         Transform globalTransform = getGlobalTransform();
+        int blockWidth = gameState.getBlockWidth();
         return globalTransform.apply(new DoubleVector[] {
             DoubleVector.dVect(0, 0),
-            DoubleVector.dVect(0, heightInBlocks),
-            DoubleVector.dVect(widthInBlocks, heightInBlocks),
-            DoubleVector.dVect(widthInBlocks, 0)});
+            DoubleVector.dVect(0, heightInBlocks * blockWidth),
+            DoubleVector.dVect(widthInBlocks * blockWidth,
+                    heightInBlocks * blockWidth),
+            DoubleVector.dVect(widthInBlocks * blockWidth, 0)});
     }
 
     @Override
     public void tick() {
-        animationManager.tick();
-
         if (activeShape != null) {
             activeShape.tick();
         }
@@ -689,6 +664,43 @@ public class GameField extends Entity implements TileField, Controllable {
                     }
                 }
             }
+        }
+    }
+
+    public void setNextShapeDisplay(NextShapeDisplay nextShapeDisplay) {
+        this.nextShapeDisplay = nextShapeDisplay;
+    }
+
+    private static class StatesQueue extends AbstractQueue<GameFieldState> {
+        private Queue<GameFieldState> queue = new ArrayDeque<>();
+
+        @Override
+        public Iterator<GameFieldState> iterator() {
+            return queue.iterator();
+        }
+
+        @Override
+        public int size() {
+            return queue.size();
+        }
+
+        @Override
+        public boolean offer(GameFieldState gameFieldState) {
+            if (queue.isEmpty()
+                    || queue.peek().transitionPossible(gameFieldState)) {
+                return queue.offer(gameFieldState);
+            }
+            return false;
+        }
+
+        @Override
+        public GameFieldState poll() {
+            return queue.poll();
+        }
+
+        @Override
+        public GameFieldState peek() {
+            return queue.peek();
         }
     }
 }

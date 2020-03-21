@@ -1,12 +1,9 @@
 package poppyfanboy.tetrisgame.graphics.animation2D;
 
-import static java.lang.Math.cos;
-import static java.lang.Math.sin;
-import poppyfanboy.tetrisgame.graphics.Animation;
-
 import static java.lang.Math.abs;
-import static java.lang.Math.min;
 import static java.lang.Math.max;
+import static java.lang.Math.min;
+import poppyfanboy.tetrisgame.graphics.Animation;
 import poppyfanboy.tetrisgame.util.Rotation;
 
 public class RotationAnimation extends Animation<Animated2D> {
@@ -45,7 +42,7 @@ public class RotationAnimation extends Animation<Animated2D> {
     public void perform(Animated2D object, int currentDuration,
             double interpolation) {
         object.setRotationAngle(getCurrentAngle(startAngle, endAngle,
-                isClockwise, currentDuration, duration, interpolation));
+                currentDuration, duration, interpolation));
     }
 
     @Override
@@ -76,38 +73,23 @@ public class RotationAnimation extends Animation<Animated2D> {
         }
         RotationAnimation otherAnimation = (RotationAnimation) other;
         double currentAngle = getCurrentAngle(this.startAngle, this.endAngle,
-                this.isClockwise, thisDuration, defaultDuration, 0.0);
+                thisDuration, duration, 0.0);
 
         double newStart = currentAngle;
         double newEnd = this.endAngle
                 + (otherAnimation.endAngle - otherAnimation.startAngle);
 
         if (this.isClockwise == otherAnimation.isClockwise) {
-            return new RotationAnimation(newStart, newEnd, isClockwise,
+            return new RotationAnimation(newStart, newEnd, this.isClockwise,
                 otherAnimation.defaultDuration,
                 this.defaultAngle + otherAnimation.defaultAngle
-                        - Math.abs(currentAngle - startAngle));
+                - Math.abs(Rotation.normalizeAngle(currentAngle - startAngle)));
         } else {
             newStart = Rotation.normalizeAngle(newStart);
             newEnd = Rotation.normalizeAngle(newEnd);
-
-            // rotate to the closest angle
-            if (!otherAnimation.isClockwise && Math.abs(newEnd - newStart)
-                    > Math.abs(newStart - newEnd - 2 * Math.PI)) {
-                newEnd += 2 * Math.PI;
-            }
-            if (otherAnimation.isClockwise && Math.abs(newEnd - newStart)
-                    > Math.abs(newStart - newEnd + 2 * Math.PI)) {
-                newEnd -= 2 * Math.PI;
-            }
-
-            if (cos(newStart) * sin(newEnd) - cos(newEnd) * sin(newStart) > 0) {
-                return new RotationAnimation(newStart, newEnd,
-                        !isClockwise, defaultDuration, defaultAngle);
-            } else {
-                return new RotationAnimation(newStart, newEnd,
-                        isClockwise, defaultDuration, defaultAngle);
-            }
+            double newDelta = Rotation.normalizeAngle(newEnd - newStart);
+            return new RotationAnimation(newStart, newStart + newDelta,
+                    newDelta < 0, defaultDuration, defaultAngle);
         }
     }
 
@@ -117,8 +99,7 @@ public class RotationAnimation extends Animation<Animated2D> {
     }
 
     private static double getCurrentAngle(double startAngle, double endAngle,
-            boolean isClockwise, int currentDuration, int duration,
-            double interpolation) {
+            int currentDuration, int duration, double interpolation) {
         double progress = duration == 0
                 ? 1.0
                 : (currentDuration + interpolation) / duration;

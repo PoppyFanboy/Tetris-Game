@@ -3,8 +3,6 @@ package poppyfanboy.tetrisgame.states;
 import java.awt.Graphics2D;
 
 import poppyfanboy.tetrisgame.Game;
-import poppyfanboy.tetrisgame.graphics.Assets;
-import poppyfanboy.tetrisgame.input.Controllable;
 
 /**
  * A class that represents a state of the game. At the very least
@@ -25,6 +23,7 @@ public abstract class State {
      * Updates the state instance.
      */
     public abstract void tick();
+
     /**
      * @param   interpolation depicts how far we are between the game
      *          update ticks.

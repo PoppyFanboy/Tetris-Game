@@ -43,9 +43,9 @@ public class Assets implements AutoCloseable {
     private static final int SPRITE_SHEET_GRID_WIDTH = 16;
     private static final String SPRITE_SHEET_PATH = "/textures/sheet.png";
 
-    private static final String FONT_PATH = "/fonts/Pixel-Font-8x8-PF.ttf";
-    private static final String FONT_NAME = "Pixel-Font-8x8-PF";
-    private static final Color FONT_COLOR = new Color(139, 134, 152);
+    public static final String FONT_PATH = "/fonts/Pixel-Font-8x8-PF.ttf";
+    public static final String FONT_NAME = "Pixel-Font-8x8-PF";
+    public static final Color FONT_COLOR = new Color(139, 134, 152);
 
 
     private final Resolution resolution;
@@ -398,13 +398,7 @@ public class Assets implements AutoCloseable {
     }
 
     private BufferedImage generateNextShapeDisplay() {
-        int blockWidth = resolution.getBlockWidth() / 2;
         BufferedImage display = generateDisplay(4, 5);
-        Graphics2D g2d = (Graphics2D) display.getGraphics();
-
-        g2d.setFont(new Font(FONT_NAME, Font.PLAIN, resolution.getFontSize()));
-        g2d.setColor(FONT_COLOR);
-        g2d.drawString("NEXT:", blockWidth, 2 * blockWidth);
         return display;
     }
 

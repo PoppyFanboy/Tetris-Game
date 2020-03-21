@@ -25,6 +25,7 @@ public abstract class Entity {
      * of the entity, this method is expected to be overridden.
      */
     public DoubleVector[] getConvexHull() {
+
         return DoubleVector.getConvexHull(getVertices(), 1e-8);
     }
 
@@ -100,7 +101,9 @@ public abstract class Entity {
      * surrounds the entity. There might be duplicates and the returned
      * set of vertices does not necessarily need to form a convex hull.
      */
-    public abstract DoubleVector[] getVertices();
+    public DoubleVector[] getVertices() {
+        return null;
+    }
 
     /**
      * Returns a parent-entity of this entity. In case there is none

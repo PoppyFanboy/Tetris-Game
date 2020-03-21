@@ -50,5 +50,9 @@ public enum Resolution {
         }
         return -1;
     }
+
+    public int getFontPixelSize() {
+        return getBlockWidth() / 2;
+    }
 }
 

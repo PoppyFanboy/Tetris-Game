@@ -18,29 +18,14 @@ import static java.lang.Math.floor;
  *
  */
 public enum Rotation {
-    // rotations are ordered in a clockwise order
-    INITIAL, RIGHT, UPSIDE_DOWN, LEFT;
-    
+    // rotations are ordered in the counter-clockwise order
+    INITIAL, LEFT, UPSIDE_DOWN, RIGHT;
+
     /**
      * Adds to rotations of the figure and returns the result.
-     * For example, {@code RIGHT.add(UPSIDE_DOWN)} will return
-     * {@code LEFT}.
      */
     public Rotation add(Rotation rotation) {
         return values()[(this.ordinal() + rotation.ordinal()) % 4];
-    }
-
-    public Rotation inverse() {
-        switch (this) {
-            case RIGHT:
-                return LEFT;
-            case LEFT:
-                return RIGHT;
-            case UPSIDE_DOWN:
-                return UPSIDE_DOWN;
-            default:
-                return INITIAL;
-        }
     }
 
     /**
@@ -53,42 +38,13 @@ public enum Rotation {
             case INITIAL:
                 return 0;
             case RIGHT:
-                return Math.PI / 2;
+                return -Math.PI / 2;
             case UPSIDE_DOWN:
                 return -Math.PI;
             case LEFT:
-                return -Math.PI / 2;
+                return Math.PI / 2;
         }
         return 0;
-    }
-
-    public int getQuadrant() {
-        switch (this) {
-            case INITIAL:
-                return 0;
-            case RIGHT:
-                return 3;
-            case UPSIDE_DOWN:
-                return 2;
-            case LEFT:
-                return 1;
-        }
-        return 0;
-    }
-
-    /**
-     * Returns a radian angle between the two given rotations (from the
-     * first to the second).
-     */
-    public static double getAngle(Rotation from, Rotation to) {
-        return getAngle(from.getAngle(), to.getAngle());
-    }
-
-    /**
-     * Returns a signed angle between the two given radian angles.
-     */
-    public static double getAngle(double from, double to) {
-        return normalizeAngle(to - from);
     }
 
     /**

@@ -9,6 +9,7 @@ import poppyfanboy.tetrisgame.graphics.AnimatedObject;
 import poppyfanboy.tetrisgame.graphics.Animation;
 import poppyfanboy.tetrisgame.graphics.AnimationEndHandler;
 import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
+import poppyfanboy.tetrisgame.graphics.displayanimation.AnimatedDisplay;
 
 /**
  * An object that manages all the animations in the game. Objects to be
@@ -23,13 +24,16 @@ import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
  * is even less concise and readable, since you have to cast objects and
  * correctly throw exceptions in case an object of wrong type is passed.
  */
-class AnimationManager {
+public class AnimationManager {
     private HashMap<Animated2D,
                 AnimatedObject<Animated2D, ActiveShapeAnimationType>>
             activeShapesAnimated = new HashMap<>();
     private HashMap<Animated2D,
                 AnimatedObject<Animated2D, LockedBlockAnimationType>>
             lockedBlocksAnimated = new HashMap<>();
+    private HashMap<AnimatedDisplay,
+                AnimatedObject<AnimatedDisplay, DisplayAnimationType>>
+            displaysAnimated = new HashMap<>();
 
     private boolean isIterating = false;
     private Queue<PostponedAction<?, ?>> postponedActions = new ArrayDeque<>();
@@ -38,6 +42,7 @@ class AnimationManager {
         isIterating = true;
         activeShapesAnimated.values().forEach(AnimatedObject::tick);
         lockedBlocksAnimated.values().forEach(AnimatedObject::tick);
+        displaysAnimated.values().forEach(AnimatedObject::tick);
         isIterating = false;
         while (!postponedActions.isEmpty()) {
             postponedActions.poll().perform();
@@ -48,6 +53,8 @@ class AnimationManager {
         activeShapesAnimated.values()
                 .forEach(object -> object.perform(interpolation));
         lockedBlocksAnimated.values()
+                .forEach(object -> object.perform(interpolation));
+        displaysAnimated.values()
                 .forEach(object -> object.perform(interpolation));
     }
 
@@ -61,6 +68,10 @@ class AnimationManager {
     public void addLockedBlock(Block lockedBlock) {
         addObject(lockedBlock, lockedBlocksAnimated,
                 LockedBlockAnimationType.class);
+    }
+
+    public void addDisplay(AnimatedDisplay display) {
+        addObject(display, displaysAnimated, DisplayAnimationType.class);
     }
 
     // -- animation addition operations --
@@ -91,6 +102,14 @@ class AnimationManager {
             Animation<Animated2D> animation, AnimationEndHandler endHandler) {
         addAnimation(fallenBlock, animationType, animation, endHandler,
                 lockedBlocksAnimated);
+    }
+
+    public void addAnimation(AnimatedDisplay display,
+            DisplayAnimationType animationType,
+            Animation<AnimatedDisplay> animation,
+            AnimationEndHandler endHandler) {
+        addAnimation(display, animationType, animation, endHandler,
+                displaysAnimated);
     }
 
     public void addAnimation(Shape activeShape,
@@ -260,7 +279,7 @@ class AnimationManager {
 
 // types of object that can be added to the animation gym
 enum ObjectType {
-    ACTIVE_SHAPE, LOCKED_BLOCK
+    ACTIVE_SHAPE, LOCKED_BLOCK, DISPLAY
 }
 // available types of animation for each type of object
 enum ActiveShapeAnimationType {
@@ -268,4 +287,8 @@ enum ActiveShapeAnimationType {
 }
 enum LockedBlockAnimationType {
     BREAK, DROP
+}
+
+enum DisplayAnimationType {
+    SHIFT_TRANSITION
 }

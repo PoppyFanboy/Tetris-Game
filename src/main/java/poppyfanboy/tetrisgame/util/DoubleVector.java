@@ -216,8 +216,7 @@ public class DoubleVector {
     public static DoubleVector[] getConvexHull(DoubleVector[] points,
             double eps) {
         if (points == null) {
-            throw new IllegalArgumentException("The given `points`"
-                + " array is null.");
+            return null;
         }
         if (points.length <= 3) {
             return Arrays.copyOf(points, points.length);
