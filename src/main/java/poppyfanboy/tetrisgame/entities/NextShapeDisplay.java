@@ -11,6 +11,7 @@ import java.util.Random;
 import java.util.function.Function;
 
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
+import poppyfanboy.tetrisgame.graphics.AnimationEndHandler;
 import poppyfanboy.tetrisgame.graphics.Assets;
 import poppyfanboy.tetrisgame.graphics.displayanimation.*;
 import poppyfanboy.tetrisgame.states.GameState;
@@ -29,6 +30,11 @@ public class NextShapeDisplay extends Entity implements AnimatedDisplay {
     // transition animations related
     private double transitionProgress = 0;
     private Function<Double, Double> distortion = Math::sin;
+    /**
+     * {@code progress = 0...0.5} - distortion starts from the bottom and
+     * proceeds to the top of the screen.
+     * {@code 0.5...1.0} - distortion is removed starting from the bottom.
+     */
     private double distortionProgress = 0.0;
     private double distortionIntensity;
 
@@ -75,7 +81,6 @@ public class NextShapeDisplay extends Entity implements AnimatedDisplay {
         gClone.setTransform(getGlobalTransform().getTransform());
         gClone.drawImage(assets.getSprite(Assets.SpriteType.NEXT_SHAPE_DISPLAY),
                 0, 0, null);
-        final int glyphWidth = gameState.getResolution().getFontPixelSize();
 
         // render text on the display
         generateProcessedImage(gClone);
@@ -91,42 +96,21 @@ public class NextShapeDisplay extends Entity implements AnimatedDisplay {
     public void setTransitionProgress(double progress) {
         progress = Math.min(Math.max(progress, 0.0), 1.0);
         transitionProgress = progress;
-    }
-
-    @Override
-    public void setNoiseDensity(double noiseDensity) {
-        this.noiseDensity = noiseDensity;
-    }
-
-    @Override
-    public void setDistortion(
-            Function<Double, Double> distortionFunction) {
-        distortion = distortionFunction;
-    }
-
-    /**
-     * {@code progress = 0...0.5} - distortion starts from the bottom and
-     * proceeds to the top of the screen.
-     * {@code 0.5...1.0} - distortion is removed starting from the bottom.
-     */
-    @Override
-    public void setDistortionProgress(double progress) {
         distortionProgress = progress;
-    }
-
-    @Override
-    public void setDistortionIntensity(double intensity) {
-        distortionIntensity = intensity;
+        noiseDensity = -0.4 * progress * progress + 0.4 * progress;
     }
 
     public void startTransitionAnimation() {
         gameState.getAnimationManager().addAnimation(this,
-                DisplayAnimationType.SHIFT_TRANSITION,
+                DisplayAnimationType.TRANSITION,
                 new TransitionAnimation(8),
                 reason -> {
-                    currentImage = nextImage;
-                    transitionProgress = 0;
-                    distortionProgress = 0;
+                    if (!reason.interrupted()) {
+                        currentImage = nextImage;
+                        transitionProgress = 0;
+                        distortionProgress = 0;
+                        noiseDensity = 0;
+                    }
                 });
     }
 
@@ -136,6 +120,12 @@ public class NextShapeDisplay extends Entity implements AnimatedDisplay {
         final int pixelWidth = gameState.getResolution().getFontPixelSize() / 8;
         final int imageHeight = heightInBlocks * blockWidth;
         final int glyphWidth = gameState.getResolution().getFontPixelSize();
+
+        // just draw the current image if there is no active transition
+        if (transitionProgress == 0) {
+            g.drawImage(currentImage, 0, 0, null);
+            return;
+        }
 
         g.setClip(glyphWidth / 2, glyphWidth / 2,
                 widthInBlocks * blockWidth - glyphWidth,
@@ -153,12 +143,15 @@ public class NextShapeDisplay extends Entity implements AnimatedDisplay {
                     null);
         }
 
-        gImage.setColor(Assets.FONT_COLOR);
-        for (int x = 0; x < image.getWidth() / pixelWidth; x++) {
-            for (int y = 0; y < image.getHeight() / pixelWidth; y++) {
-                if (random.nextDouble() < noiseDensity) {
-                    gImage.fillRect(x * pixelWidth, y * pixelWidth,
-                            pixelWidth, pixelWidth);
+        // noise
+        if (noiseDensity != 0) {
+            gImage.setColor(Assets.FONT_COLOR);
+            for (int x = 0; x < image.getWidth() / pixelWidth; x++) {
+                for (int y = 0; y < image.getHeight() / pixelWidth; y++) {
+                    if (random.nextDouble() < noiseDensity) {
+                        gImage.fillRect(x * pixelWidth, y * pixelWidth,
+                                pixelWidth, pixelWidth);
+                    }
                 }
             }
         }

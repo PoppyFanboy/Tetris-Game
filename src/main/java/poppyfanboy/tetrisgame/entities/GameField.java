@@ -6,6 +6,7 @@ import java.awt.image.BufferedImage;
 import java.util.AbstractQueue;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -60,6 +61,7 @@ public class GameField extends Entity implements TileField, Controllable {
     private GameState gameState;
     private AnimationManager animationManager;
     private NextShapeDisplay nextShapeDisplay;
+    private ScoreDisplay scoreDisplay;
     private EnumMap<InputKey, KeyState> lastInputs;
 
     // graphics
@@ -80,9 +82,13 @@ public class GameField extends Entity implements TileField, Controllable {
             = new TreeMap<>(IntVector.Y_ORDER);
 
     private final Random random;
-    private int level = 1;
-    private int score = 0;
-    private int clearedLinesCount = 0;
+    private int level;
+    private int score;
+    private int clearedLinesCount;
+    // difficult line clears in a row
+    private int comboCounter = 0;
+    // used when scoring the T-spins
+    private boolean lastMovementIsRotation;
 
     // current timings (updated as the player score is going up)
     private int softDropDuration = Game.TICKS_PER_SECOND / 4;
@@ -178,6 +184,12 @@ public class GameField extends Entity implements TileField, Controllable {
     }
 
     public void start() {
+        level = 1;
+        score = 0;
+        clearedLinesCount = 0;
+        if (scoreDisplay != null) {
+            scoreDisplay.setValues(score, level, clearedLinesCount);
+        }
         statesQueue.offer(SHAPE_SPAWN_READY);
     }
 
@@ -218,11 +230,12 @@ public class GameField extends Entity implements TileField, Controllable {
                     int duration = state == SHAPE_FORCED_DROP
                             ? forcedDropDuration
                             : softDropDuration;
-                    animationManager.addAnimation(activeShape,
-                            ActiveShapeAnimationType.DROP,
-                            activeShape.createDropAnimation(duration),
-                            reason -> { if (reason.finished())
-                                                statesQueue.offer(state); });
+                    activeShape.startDropAnimation(duration,
+                        reason -> {
+                            if (reason.finished())
+                                statesQueue.offer(state);
+                        });
+                    lastMovementIsRotation = false;
                 } else {
                     statesQueue.offer(SHAPE_FELL);
                 }
@@ -256,8 +269,8 @@ public class GameField extends Entity implements TileField, Controllable {
                     animationManager.addLockedBlock(block);
                 }
                 animationManager.removeActiveShape(activeShape);
+                updateScore(removeFilledRows(startY, startY + 3));
                 activeShape = null;
-                removeFilledRows(startY, startY + 3);
 
                 for (Block block : brokenBlocks) {
                     animationManager.addAnimation(block,
@@ -334,6 +347,9 @@ public class GameField extends Entity implements TileField, Controllable {
         }
         activeShape = new Shape(gameState, shapeType, Rotation.INITIAL,
                 SPAWN_COORDINATES, blockColors, this);
+        lastMovementIsRotation = false;
+        comboCounter = 0;
+
         animationManager.addActiveShape(activeShape);
         if (nextShapeDisplay != null) {
             nextShapeDisplay.setNextShape(nextShapeType);
@@ -346,9 +362,14 @@ public class GameField extends Entity implements TileField, Controllable {
      * There is no need in checking the whole set of the blocks, since
      * when the shape falls it can make at most 4 filled rows, so
      * we can restrict the searching area to 4 specific rows
-     * (from startY to endY, boundaries included)
+     * (from startY to endY, boundaries included).
+     *
+     * This method also updates the score, number of cleared lines and the
+     * level of the game.
+     *
+     * @return  number of lines cleared.
      */
-    private void removeFilledRows(int startY, int endY) {
+    private int removeFilledRows(int startY, int endY) {
         assert startY <= endY;
 
         final int width = getWidthInBlocks();
@@ -420,6 +441,71 @@ public class GameField extends Entity implements TileField, Controllable {
         droppedBlocks = Collections.unmodifiableList(droppedBlocks);
         droppedBlocksOldKeys
                 = Collections.unmodifiableList(droppedBlocksOldKeys);
+
+        return clearedLinesIndices.size();
+    }
+
+    private void updateScore(int linesCleared) {
+        // update score/lines/level
+        clearedLinesCount += linesCleared;
+        boolean isTSpin = false;
+
+        if (activeShape.getShapeType() == TetrisShapeType.T_SHAPE
+                && lastMovementIsRotation) {
+            IntVector centerBlockCoords
+                    = activeShape.getTileCoords().add(2, 2);
+            IntVector[] diagonals = new IntVector[4];
+            for (int i = 0; i < 2; i++) {
+                for (int j = 0; j < 2; j++) {
+                    diagonals[i + j * 2] = centerBlockCoords.add(
+                            (int) (2 * (i - 0.5)),
+                            (int) (2 * (j - 0.5)));
+                }
+            }
+            int collisionsCount = 0;
+            for (IntVector coords : diagonals) {
+                if (!this.rangeCheck(coords)
+                        || lockedBlocks.containsKey(coords)
+                        && !activeShape.checkCollision(coords)) {
+                    collisionsCount++;
+                }
+            }
+            if (collisionsCount >= 3) {
+                isTSpin = true;
+            }
+        }
+
+        // update combo counter
+        if (isTSpin || linesCleared == 4) {
+            comboCounter += 1;
+        } else {
+            comboCounter = 0;
+        }
+
+        int scoreAdded = 0;
+        if (linesCleared != 0) {
+            if (isTSpin) {
+                if (linesCleared < 3) {
+                    scoreAdded += 4 * linesCleared - 1;
+                } else {
+                    scoreAdded += 6;
+                }
+            } else {
+                if (linesCleared < 4) {
+                    scoreAdded += 2 * linesCleared - 1;
+                } else {
+                    scoreAdded += 2 * linesCleared;
+                }
+            }
+            if (comboCounter >= 2) {
+                scoreAdded = 12;
+            }
+        }
+        score += scoreAdded * 100;
+        if (scoreAdded != 0) {
+            scoreDisplay.setValues(score, level, clearedLinesCount);
+            scoreDisplay.startTransitionAnimation();
+        }
     }
 
     @Override
@@ -567,10 +653,7 @@ public class GameField extends Entity implements TileField, Controllable {
                             break;
                         }
                         state = SHAPE_FORCED_DROP;
-                        animationManager.addAnimation(activeShape,
-                                ActiveShapeAnimationType.DROP,
-                                activeShape.createDropAnimation(
-                                        forcedDropDuration));
+                        activeShape.startDropAnimation(forcedDropDuration);
                         break;
                     case ARROW_LEFT:
                         xShift--;
@@ -595,10 +678,7 @@ public class GameField extends Entity implements TileField, Controllable {
                             break;
                         }
                         state = SHAPE_SOFT_DROP;
-                        animationManager.addAnimation(activeShape,
-                                ActiveShapeAnimationType.DROP,
-                                activeShape.createDropAnimation(
-                                        softDropDuration));
+                        activeShape.startDropAnimation(softDropDuration);
                         break;
                 }
             }
@@ -613,6 +693,7 @@ public class GameField extends Entity implements TileField, Controllable {
                         ActiveShapeAnimationType.LEFT_RIGHT,
                         activeShape.createUserControlAnimation(
                             userControlAnimationDuration));
+                lastMovementIsRotation = false;
             }
         }
         if (shapeControllable && (rotationDirection == Rotation.LEFT
@@ -632,6 +713,7 @@ public class GameField extends Entity implements TileField, Controllable {
                 animationManager.addAnimation(activeShape,
                         ActiveShapeAnimationType.ROTATION,
                         rotationAnimation);
+                lastMovementIsRotation = true;
             } else {
                 IntVector[] wallKicks = rotationDirection == Rotation.RIGHT
                         ? activeShape.getRightWallKicks()
@@ -660,6 +742,7 @@ public class GameField extends Entity implements TileField, Controllable {
                         ActiveShapeAnimationType.LEFT_RIGHT);
 
                         statesQueue.offer(SHAPE_WALL_KICKED);
+                        lastMovementIsRotation = true;
                         break;
                     }
                 }
@@ -669,6 +752,11 @@ public class GameField extends Entity implements TileField, Controllable {
 
     public void setNextShapeDisplay(NextShapeDisplay nextShapeDisplay) {
         this.nextShapeDisplay = nextShapeDisplay;
+    }
+
+    public void setScoreDisplay(ScoreDisplay scoreDisplay) {
+        this.scoreDisplay = scoreDisplay;
+        scoreDisplay.setValues(score, level, clearedLinesCount);
     }
 
     private static class StatesQueue extends AbstractQueue<GameFieldState> {

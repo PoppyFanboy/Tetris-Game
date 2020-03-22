@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import java.util.Objects;
+import poppyfanboy.tetrisgame.graphics.AnimationEndHandler;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.graphics.animation2D.HVLinearAnimation;
@@ -137,10 +138,18 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         return shapeType;
     }
 
-    public HVLinearAnimation createDropAnimation(int duration) {
+    public void startDropAnimation(int duration, AnimationEndHandler callback) {
         final int blockWidth = gameState.getBlockWidth();
-        return HVLinearAnimation.getVerticalAnimation(coords.getY(),
-                tileCoords.getY() * blockWidth, duration, blockWidth);
+        HVLinearAnimation animation = HVLinearAnimation.getVerticalAnimation(
+                coords.getY(), tileCoords.getY() * blockWidth, duration,
+                blockWidth);
+        gameState.getAnimationManager().addAnimation(this,
+                ActiveShapeAnimationType.DROP,
+                animation, callback);
+    }
+
+    public void startDropAnimation(int duration) {
+        startDropAnimation(duration, null);
     }
 
     public HVLinearAnimation createUserControlAnimation(int duration) {

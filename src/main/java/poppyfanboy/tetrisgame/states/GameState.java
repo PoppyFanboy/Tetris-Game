@@ -8,6 +8,7 @@ import poppyfanboy.tetrisgame.Game;
 import poppyfanboy.tetrisgame.entities.AnimationManager;
 import poppyfanboy.tetrisgame.entities.GameField;
 import poppyfanboy.tetrisgame.entities.NextShapeDisplay;
+import poppyfanboy.tetrisgame.entities.ScoreDisplay;
 import poppyfanboy.tetrisgame.graphics.Assets;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 
@@ -16,6 +17,7 @@ public class GameState extends State {
     // core entities
     private GameField gameField;
     private NextShapeDisplay nextShapeDisplay;
+    private ScoreDisplay scoreDisplay;
 
     private AnimationManager animationManager = new AnimationManager();
     private Random random = new Random();
@@ -39,6 +41,12 @@ public class GameState extends State {
                 NextShapeDisplay.DEFAULT_HEIGHT);
         animationManager.addDisplay(nextShapeDisplay);
         gameField.setNextShapeDisplay(nextShapeDisplay);
+
+        scoreDisplay = new ScoreDisplay(this,
+                new DoubleVector(23 * blockWidth, 10 * blockWidth),
+                ScoreDisplay.DEFAULT_WIDTH, ScoreDisplay.DEFAULT_HEIGHT);
+        animationManager.addDisplay(scoreDisplay);
+        gameField.setScoreDisplay(scoreDisplay);
 
         // test code
         gameField.start();
@@ -75,10 +83,9 @@ public class GameState extends State {
         g.drawImage(assets.getSprite(Assets.SpriteType.BACKGROUND), 0, 0, null);
         g.drawImage(assets.getSprite(Assets.SpriteType.LOGO),
                 13 * blockWidth, blockWidth, null);
-        g.drawImage(assets.getSprite(Assets.SpriteType.SCORE_DISPLAY),
-                23 * blockWidth, 10 * blockWidth, null);
 
         gameField.render(g, interpolation);
         nextShapeDisplay.render(g, interpolation);
+        scoreDisplay.render(g, interpolation);
     }
 }

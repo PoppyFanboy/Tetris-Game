@@ -290,5 +290,5 @@ enum LockedBlockAnimationType {
 }
 
 enum DisplayAnimationType {
-    SHIFT_TRANSITION
+    TRANSITION
 }

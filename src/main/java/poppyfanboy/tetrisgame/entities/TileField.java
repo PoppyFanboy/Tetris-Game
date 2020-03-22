@@ -20,6 +20,14 @@ public interface TileField {
     int getWidthInBlocks();
     int getHeightInBlocks();
 
+    default boolean rangeCheck(IntVector coords) {
+        int x0 = getStartingIndex().getX(), y0 = getStartingIndex().getY();
+        int x1 = x0 + getWidthInBlocks() - 1;
+        int y1 = y0 + getHeightInBlocks() - 1;
+        return x0 < coords.getX() && coords.getX() < x1
+                && y0 < coords.getY() && coords.getY() < y1;
+    }
+
     /**
      * Returns a set of objects currently present on the game field.
      * It may be useful for the collision detection: if the object on

@@ -398,21 +398,11 @@ public class Assets implements AutoCloseable {
     }
 
     private BufferedImage generateNextShapeDisplay() {
-        BufferedImage display = generateDisplay(4, 5);
-        return display;
+        return generateDisplay(4, 5);
     }
 
     private BufferedImage generateScoreDisplay() {
-        int blockWidth = resolution.getBlockWidth() / 2;
-        BufferedImage display = generateDisplay(7, 4);
-        Graphics2D g2d = (Graphics2D) display.getGraphics();
-
-        g2d.setFont(new Font(FONT_NAME, Font.PLAIN, resolution.getFontSize()));
-        g2d.setColor(FONT_COLOR);
-        g2d.drawString("SCORE:000000", blockWidth, 2 * blockWidth);
-        g2d.drawString("LINES:000", blockWidth, 4 * blockWidth);
-        g2d.drawString("LEVEL:0", blockWidth, 6 * blockWidth);
-        return display;
+        return generateDisplay(7, 4);
     }
 
     private BufferedImage generateDisplay(int width, int height) {
