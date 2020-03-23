@@ -6,7 +6,6 @@ import java.awt.image.BufferedImage;
 import java.util.AbstractQueue;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -22,7 +21,6 @@ import poppyfanboy.tetrisgame.Game;
 import poppyfanboy.tetrisgame.states.GameState;
 
 import poppyfanboy.tetrisgame.graphics.Assets;
-import poppyfanboy.tetrisgame.graphics.animation2D.RotationAnimation;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
 
@@ -257,7 +255,6 @@ public class GameField extends Entity implements TileField, Controllable {
                     }
                 }
                 // implement lock delay
-                statesQueue.clear();
                 statesQueue.offer(CLEARING_FILLED_LINES);
                 break;
 
@@ -273,9 +270,7 @@ public class GameField extends Entity implements TileField, Controllable {
                 activeShape = null;
 
                 for (Block block : brokenBlocks) {
-                    animationManager.addAnimation(block,
-                        LockedBlockAnimationType.BREAK,
-                        block.createBlockBreakAnimation(blockBreakDuration));
+                    block.startBreakAnimation(blockBreakDuration);
                 }
                 if (!brokenBlocks.isEmpty()) {
                     // add callback only for one block, since all blocks take
@@ -297,9 +292,7 @@ public class GameField extends Entity implements TileField, Controllable {
                 brokenBlocks = Collections.emptyList();
 
                 for (Block block : droppedBlocks) {
-                    animationManager.addAnimation(block,
-                            LockedBlockAnimationType.DROP,
-                            block.createDropAnimation());
+                    block.startDropAnimation();
                 }
                 if (!droppedBlocks.isEmpty()) {
                     // add callback only for the highest block, since it will
@@ -457,9 +450,8 @@ public class GameField extends Entity implements TileField, Controllable {
             IntVector[] diagonals = new IntVector[4];
             for (int i = 0; i < 2; i++) {
                 for (int j = 0; j < 2; j++) {
-                    diagonals[i + j * 2] = centerBlockCoords.add(
-                            (int) (2 * (i - 0.5)),
-                            (int) (2 * (j - 0.5)));
+                    diagonals[i + j * 2]
+                            = centerBlockCoords.add(2 * i - 1, 2 * j - 1);
                 }
             }
             int collisionsCount = 0;
@@ -689,30 +681,23 @@ public class GameField extends Entity implements TileField, Controllable {
                     activeShape.getTileCoords().add(iVect(xShift, 0)),
                     activeShape.getRotation(), this)) {
                 activeShape.tileShift(iVect(xShift, 0));
-                animationManager.addAnimation(activeShape,
-                        ActiveShapeAnimationType.LEFT_RIGHT,
-                        activeShape.createUserControlAnimation(
-                            userControlAnimationDuration));
+                activeShape.startUserControlAnimation(
+                        userControlAnimationDuration);
                 lastMovementIsRotation = false;
             }
         }
         if (shapeControllable && (rotationDirection == Rotation.LEFT
                     || rotationDirection == Rotation.RIGHT)) {
             boolean isClockwise = rotationDirection == Rotation.LEFT;
-            double newAngle = isClockwise ? -Math.PI / 2 : Math.PI / 2;
+            double angleShift = isClockwise ? -Math.PI / 2 : Math.PI / 2;
             Rotation newRotation
                     = activeShape.getRotation().add(rotationDirection);
-
-            RotationAnimation rotationAnimation
-                    = activeShape.createRotationAnimation(newAngle,
-                    isClockwise, userControlAnimationDuration);
 
             if (Shape.fits(activeShape, activeShape.getShapeType(),
                     activeShape.getTileCoords(), newRotation, this)) {
                 activeShape.rotate(rotationDirection);
-                animationManager.addAnimation(activeShape,
-                        ActiveShapeAnimationType.ROTATION,
-                        rotationAnimation);
+                activeShape.startRotationAnimation(angleShift, isClockwise,
+                        userControlAnimationDuration);
                 lastMovementIsRotation = true;
             } else {
                 IntVector[] wallKicks = rotationDirection == Rotation.RIGHT
@@ -724,22 +709,18 @@ public class GameField extends Entity implements TileField, Controllable {
                             newRotation, this)) {
                         // rotate and wall kick
                         activeShape.rotate(rotationDirection);
+                        activeShape.startRotationAnimation(angleShift,
+                                isClockwise, userControlAnimationDuration);
+
                         activeShape.tileShift(shift);
-
-                        animationManager.addAnimation(activeShape,
-                            ActiveShapeAnimationType.ROTATION,
-                            rotationAnimation);
-
-                        animationManager.addAnimation(activeShape,
-                            ActiveShapeAnimationType.WALL_KICK,
-                            activeShape.createMovementAnimation(
-                                    userControlAnimationDuration),
-                            reason -> statesQueue.offer(SHAPE_SOFT_DROP));
+                        activeShape.startWallKickAnimation(
+                                userControlAnimationDuration,
+                                reason -> statesQueue.offer(SHAPE_SOFT_DROP));
 
                         animationManager.interruptAnimation(activeShape,
-                        ActiveShapeAnimationType.DROP);
+                                ActiveShapeAnimationType.DROP);
                         animationManager.interruptAnimation(activeShape,
-                        ActiveShapeAnimationType.LEFT_RIGHT);
+                                ActiveShapeAnimationType.LEFT_RIGHT);
 
                         statesQueue.offer(SHAPE_WALL_KICKED);
                         lastMovementIsRotation = true;

@@ -8,11 +8,10 @@ import poppyfanboy.tetrisgame.util.Rotation;
 
 public class RotationAnimation extends Animation<Animated2D> {
     private final double startAngle, endAngle;
-
-    private int duration;
-    private final boolean isClockwise;
     private final double defaultAngle;
     private final int defaultDuration;
+
+    private int duration;
 
     /**
      * {@code defaultAngle} is the default angle at which the
@@ -26,16 +25,7 @@ public class RotationAnimation extends Animation<Animated2D> {
         this.duration = (int) max((min(progress, 1.0) * duration), 1);
         this.startAngle = startAngle;
         this.endAngle = endAngle;
-        this.isClockwise = isClockwise;
         this.defaultAngle = defaultAngle;
-    }
-
-    public double getStartAngle() {
-        return startAngle;
-    }
-
-    public double getEndAngle() {
-        return endAngle;
     }
 
     @Override
@@ -74,13 +64,14 @@ public class RotationAnimation extends Animation<Animated2D> {
         RotationAnimation otherAnimation = (RotationAnimation) other;
         double currentAngle = getCurrentAngle(this.startAngle, this.endAngle,
                 thisDuration, duration, 0.0);
-
         double newStart = currentAngle;
         double newEnd = this.endAngle
                 + (otherAnimation.endAngle - otherAnimation.startAngle);
 
-        if (this.isClockwise == otherAnimation.isClockwise) {
-            return new RotationAnimation(newStart, newEnd, this.isClockwise,
+        if (this.startAngle >= this.endAngle
+                == otherAnimation.startAngle >= otherAnimation.endAngle) {
+            return new RotationAnimation(newStart, newEnd,
+                this.startAngle >= this.endAngle,
                 otherAnimation.defaultDuration,
                 this.defaultAngle + otherAnimation.defaultAngle
                 - Math.abs(Rotation.normalizeAngle(currentAngle - startAngle)));

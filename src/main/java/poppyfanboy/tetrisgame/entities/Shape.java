@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import java.util.Objects;
+import static poppyfanboy.tetrisgame.entities.GameField.GameFieldState.SHAPE_SOFT_DROP;
 import poppyfanboy.tetrisgame.graphics.AnimationEndHandler;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
@@ -152,23 +153,32 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         startDropAnimation(duration, null);
     }
 
-    public HVLinearAnimation createUserControlAnimation(int duration) {
+    public void startUserControlAnimation(int duration) {
         final int blockWidth = gameState.getBlockWidth();
-        return HVLinearAnimation.getHorizontalAnimation(coords.getX(),
-                tileCoords.getX() * blockWidth, duration, blockWidth);
+        HVLinearAnimation animation = HVLinearAnimation.getHorizontalAnimation(
+                coords.getX(), tileCoords.getX() * blockWidth,
+                duration, blockWidth);
+        gameState.getAnimationManager().addAnimation(this,
+                ActiveShapeAnimationType.LEFT_RIGHT,
+                animation);
     }
 
-    public RotationAnimation createRotationAnimation(double angleShift,
-            boolean isClockwise, int duration) {
-        return new RotationAnimation(rotationAngle,
+    public void startRotationAnimation(double angleShift, boolean isClockwise,
+            int duration) {
+        RotationAnimation animation = new RotationAnimation(rotationAngle,
                 rotationAngle + angleShift, isClockwise, duration, Math.PI / 2);
-
+        gameState.getAnimationManager().addAnimation(this,
+                ActiveShapeAnimationType.ROTATION,
+                animation);
     }
 
-    public MoveAnimation createMovementAnimation(int duration) {
+    public void startWallKickAnimation(int duration,
+            AnimationEndHandler callback) {
         final int blockWidth = gameState.getBlockWidth();
-        return new MoveAnimation(coords,
+        MoveAnimation animation = new MoveAnimation(coords,
                 tileCoords.times(blockWidth).toDouble(), duration, blockWidth);
+        gameState.getAnimationManager().addAnimation(this,
+                ActiveShapeAnimationType.WALL_KICK, animation, callback);
     }
 
     @Override
