@@ -63,6 +63,10 @@ public class Transform {
                 new Transform(otherRotation, new DoubleVector(0, 0)));
     }
 
+    public Transform tScale(int scale) {
+        return new Transform(rotation, translation.times(scale));
+    }
+
     public DoubleVector getTranslation() {
         return translation;
     }

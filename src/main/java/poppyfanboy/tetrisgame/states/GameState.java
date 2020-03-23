@@ -27,23 +27,18 @@ public class GameState extends State {
         assets = new Assets(game.getResolution(), GameField.DEFAULT_WIDTH,
                 GameField.DEFAULT_HEIGHT);
 
-        int blockWidth = game.getResolution().getBlockWidth();
-        gameField = new GameField(this,
-                new DoubleVector(11 * blockWidth, 4 * blockWidth),
-                GameField.DEFAULT_WIDTH, GameField.DEFAULT_HEIGHT,
-                random);
+        gameField = new GameField(this, new DoubleVector(11, 4),
+                GameField.DEFAULT_WIDTH, GameField.DEFAULT_HEIGHT, random);
         // provide inputs for the game field
         game.getKeyManager().addListener(gameField);
 
-        nextShapeDisplay = new NextShapeDisplay(this,
-                new DoubleVector(23 * blockWidth, 4 * blockWidth),
+        nextShapeDisplay = new NextShapeDisplay(this, new DoubleVector(23, 4),
                 NextShapeDisplay.DEFAULT_WIDTH,
                 NextShapeDisplay.DEFAULT_HEIGHT);
         animationManager.addDisplay(nextShapeDisplay);
         gameField.setNextShapeDisplay(nextShapeDisplay);
 
-        scoreDisplay = new ScoreDisplay(this,
-                new DoubleVector(23 * blockWidth, 10 * blockWidth),
+        scoreDisplay = new ScoreDisplay(this, new DoubleVector(23, 10),
                 ScoreDisplay.DEFAULT_WIDTH, ScoreDisplay.DEFAULT_HEIGHT);
         animationManager.addDisplay(scoreDisplay);
         gameField.setScoreDisplay(scoreDisplay);
@@ -64,10 +59,6 @@ public class GameState extends State {
         return getGame().getResolution();
     }
 
-    public int getBlockWidth() {
-        return getResolution().getBlockWidth();
-    }
-
     @Override
     public void tick() {
         animationManager.tick();
@@ -79,10 +70,10 @@ public class GameState extends State {
     public void render(Graphics2D g, double interpolation) {
         animationManager.perform(interpolation);
 
-        int blockWidth = getBlockWidth();
+        final int blockWidth = getResolution().getBlockWidth();
         g.drawImage(assets.getSprite(Assets.SpriteType.BACKGROUND), 0, 0, null);
         g.drawImage(assets.getSprite(Assets.SpriteType.LOGO),
-                13 * blockWidth, blockWidth, null);
+                13 * blockWidth, 1 * blockWidth, null);
 
         gameField.render(g, interpolation);
         nextShapeDisplay.render(g, interpolation);

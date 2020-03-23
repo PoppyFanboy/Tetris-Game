@@ -11,9 +11,9 @@ import java.util.Random;
 import java.util.function.Function;
 
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
-import poppyfanboy.tetrisgame.graphics.AnimationEndHandler;
 import poppyfanboy.tetrisgame.graphics.Assets;
-import poppyfanboy.tetrisgame.graphics.displayanimation.*;
+import poppyfanboy.tetrisgame.graphics.displayanimation.TransitionAnimation;
+import poppyfanboy.tetrisgame.graphics.displayanimation.AnimatedDisplay;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 import poppyfanboy.tetrisgame.util.Transform;
@@ -53,7 +53,7 @@ public class NextShapeDisplay extends Entity implements AnimatedDisplay {
         this.heightInBlocks = heightInBlocks;
         currentImage = generateNextShapeImage(null);
         currentImage = generateNextShapeImage(null);
-        distortionIntensity = gameState.getBlockWidth() / 6.0;
+        distortionIntensity = gameState.getResolution().getBlockWidth() / 6.0;
     }
 
     public void setNextShape(ShapeType newNextShape) {
@@ -71,20 +71,21 @@ public class NextShapeDisplay extends Entity implements AnimatedDisplay {
     }
 
     @Override
-    public void render(Graphics2D g, double interpolation) {
+    public void render(Graphics2D gOriginal, double interpolation) {
         // perform actions on the context clone, so that the original one
         // will not get messed up
-        Graphics2D gClone = (Graphics2D) g.create();
+        Graphics2D g = (Graphics2D) gOriginal.create();
         Assets assets = gameState.getAssets();
 
         // render the frame of the display
-        gClone.setTransform(getGlobalTransform().getTransform());
-        gClone.drawImage(assets.getSprite(Assets.SpriteType.NEXT_SHAPE_DISPLAY),
+        final int blockWidth = gameState.getResolution().getBlockWidth();
+        g.setTransform(getGlobalTransform().tScale(blockWidth).getTransform());
+        g.drawImage(assets.getSprite(Assets.SpriteType.NEXT_SHAPE_DISPLAY),
                 0, 0, null);
 
         // render text on the display
-        generateProcessedImage(gClone);
-        gClone.dispose();
+        generateProcessedImage(g);
+        g.dispose();
     }
 
     @Override
@@ -116,7 +117,7 @@ public class NextShapeDisplay extends Entity implements AnimatedDisplay {
 
     private void generateProcessedImage(Graphics2D gOriginal) {
         Graphics2D g = (Graphics2D) gOriginal.create();
-        final int blockWidth = gameState.getBlockWidth();
+        final int blockWidth = gameState.getResolution().getBlockWidth();
         final int pixelWidth = gameState.getResolution().getFontPixelSize() / 8;
         final int imageHeight = heightInBlocks * blockWidth;
         final int glyphWidth = gameState.getResolution().getFontPixelSize();
@@ -189,7 +190,7 @@ public class NextShapeDisplay extends Entity implements AnimatedDisplay {
      * Generates an image that will be shown on the display.
      */
     private BufferedImage generateNextShapeImage(ShapeType nextShape) {
-        final int blockWidth = gameState.getBlockWidth();
+        final int blockWidth = gameState.getResolution().getBlockWidth();
         BufferedImage image = new BufferedImage(widthInBlocks * blockWidth,
                 heightInBlocks * blockWidth, BufferedImage.TYPE_INT_ARGB_PRE);
         Graphics2D g = (Graphics2D) image.getGraphics();

@@ -8,15 +8,13 @@ public class AcceleratedMoveAnimation extends Animation<Animated2D> {
     private static final double ACCELERATION = 0.0125;
 
     private final DoubleVector startCoords, endCoords;
-    private final int blockWidth;
     private double initialSpeed;
 
     public AcceleratedMoveAnimation(DoubleVector startCoords,
-            DoubleVector endCoords, double initialSpeed, int blockWidth) {
+            DoubleVector endCoords, double initialSpeed) {
         this.startCoords = startCoords;
         this.endCoords = endCoords;
         this.initialSpeed = initialSpeed;
-        this.blockWidth = blockWidth;
     }
 
     @Override
@@ -24,7 +22,7 @@ public class AcceleratedMoveAnimation extends Animation<Animated2D> {
             double interpolation) {
         double currentDistance
                 = getDistance(currentDuration + interpolation, initialSpeed,
-                ACCELERATION * blockWidth);
+                ACCELERATION);
         if (currentDistance < endCoords.subtract(startCoords).length()) {
             object.setCoords(startCoords.add(endCoords
                     .subtract(startCoords).normalize()
@@ -36,7 +34,7 @@ public class AcceleratedMoveAnimation extends Animation<Animated2D> {
 
     @Override
     public boolean isFinished(int duration) {
-        return getDistance(duration, initialSpeed, ACCELERATION * blockWidth)
+        return getDistance(duration, initialSpeed, ACCELERATION)
                 >= endCoords.subtract(startCoords).length();
     }
 

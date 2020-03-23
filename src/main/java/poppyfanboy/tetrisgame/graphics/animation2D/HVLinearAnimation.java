@@ -38,9 +38,6 @@ public class HVLinearAnimation extends Animation<Animated2D> {
     @Override
     public void perform(Animated2D object, int currentDuration,
             double interpolation) {
-        double progress = duration == 0
-                ? 1.0
-                : (currentDuration + interpolation) / duration;
         double currCoords = getCurrentCoords(startCoords, endCoords,
                 currentDuration, duration, interpolation);
         if (isHorizontal) {

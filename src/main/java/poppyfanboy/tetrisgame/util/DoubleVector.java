@@ -100,6 +100,10 @@ public class DoubleVector {
         return new DoubleVector(coefficient * x, coefficient * y);
     }
 
+    public DoubleVector times(double xCoefficient, double yCoefficient) {
+        return new DoubleVector(xCoefficient * x, yCoefficient * y);
+    }
+
     public DoubleVector rotate(double angle) {
         // | newX | = | cos a -sin a | | x |
         // | newY | = | sin a  cos a | | y |

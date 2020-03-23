@@ -6,6 +6,7 @@ import java.awt.image.BufferedImage;
 import java.util.AbstractQueue;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -525,13 +526,11 @@ public class GameField extends Entity implements TileField, Controllable {
         return parentEntity;
     }
 
+
     @Override
     public Transform getLocalTransform() {
-        int blockWidth = gameState.getBlockWidth();
-        int width = widthInBlocks * blockWidth;
-        int height = heightInBlocks * blockWidth;
         DoubleVector rotationPivot
-                = new DoubleVector(width / 2.0, height / 2.0);
+                = new DoubleVector(widthInBlocks / 2.0,heightInBlocks / 2.0);
         return Transform.getRotation(rotationAngle, rotationPivot)
                 .combine(new Transform(coords));
     }
@@ -540,35 +539,32 @@ public class GameField extends Entity implements TileField, Controllable {
     public Transform getAdditionalTransform(Entity entity) {
         if (entity == activeShape) {
             // fit the shape into the game field
-            final int blockWidth = gameState.getBlockWidth();
             DoubleVector[] convexHull = activeShape.getConvexHull();
 
-            int width = getWidthInBlocks() * blockWidth;
-            int height = getHeightInBlocks() * blockWidth;
             // (x1, y1) - upper left corner of the game field
             // (x2, y2) - bottom right corner of the game field
             double x1 = 0, y1 = 0;
-            double x2 = x1 + width, y2 = y1 + height;
+            double x2 = x1 + widthInBlocks, y2 = y1 + heightInBlocks;
 
             // additional shifts to try to put the shape inside the game
             // field frame
-            int fitDX = 0, fitDY = 0;
+            double fitDX = 0, fitDY = 0;
             for (DoubleVector point : convexHull) {
                 if (point.getX() < x1
                         && abs(x1 - point.getX()) > abs(fitDX)) {
-                    fitDX = (int) (x1 - point.getX());
+                    fitDX = x1 - point.getX();
                 }
                 if (point.getX() > x2
                         && abs(x2 - point.getX()) > abs(fitDX)) {
-                    fitDX = (int) (x2 - point.getX());
+                    fitDX = x2 - point.getX();
                 }
                 if (point.getY() < y1
                         && abs(y1 - point.getY()) > abs(fitDY)) {
-                    fitDY = (int) (y1 - point.getY());
+                    fitDY = y1 - point.getY();
                 }
                 if (point.getY() > y2
                         && abs(y2 - point.getY()) > abs(fitDY)) {
-                    fitDY = (int) (y2 - point.getY());
+                    fitDY = y2 - point.getY();
                 }
             }
             return new Transform(new DoubleVector(fitDX, fitDY));
@@ -578,40 +574,36 @@ public class GameField extends Entity implements TileField, Controllable {
     }
 
     @Override
-    public void render(Graphics2D g, double interpolation) {
-        final int blockWidth = gameState.getBlockWidth();
-        AffineTransform oldTransform = g.getTransform();
-        g.setTransform(getGlobalTransform().getTransform());
+    public void render(Graphics2D gOriginal, double interpolation) {
+        Graphics2D g = (Graphics2D) gOriginal.create();
+        final int blockWidth = gameState.getResolution().getBlockWidth();
+        g.setTransform(getGlobalTransform().tScale(blockWidth).getTransform());
 
         BufferedImage brickWall
                 = gameState.getAssets().getSprite(Assets.SpriteType.BRICK_WALL);
         g.drawImage(brickWall, 0, 0, null);
 
-
         BufferedImage frame = gameState.getAssets()
                 .getSprite(Assets.SpriteType.GAME_FIELD_FRAME);
         g.drawImage(frame, -blockWidth, -blockWidth, null);
-
-        g.setTransform(oldTransform);
+        g.dispose();
 
         if (activeShape != null) {
-            activeShape.render(g, interpolation);
+            activeShape.render(gOriginal, interpolation);
         }
         for (Block block : lockedBlocks.values()) {
-            block.render(g, interpolation);
+            block.render(gOriginal, interpolation);
         }
     }
 
     @Override
     public DoubleVector[] getVertices() {
         Transform globalTransform = getGlobalTransform();
-        int blockWidth = gameState.getBlockWidth();
         return globalTransform.apply(new DoubleVector[] {
             DoubleVector.dVect(0, 0),
-            DoubleVector.dVect(0, heightInBlocks * blockWidth),
-            DoubleVector.dVect(widthInBlocks * blockWidth,
-                    heightInBlocks * blockWidth),
-            DoubleVector.dVect(widthInBlocks * blockWidth, 0)});
+            DoubleVector.dVect(0, heightInBlocks),
+            DoubleVector.dVect(widthInBlocks, heightInBlocks),
+            DoubleVector.dVect(widthInBlocks, 0)});
     }
 
     @Override

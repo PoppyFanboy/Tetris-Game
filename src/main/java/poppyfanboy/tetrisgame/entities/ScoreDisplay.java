@@ -48,7 +48,9 @@ public class ScoreDisplay extends Entity implements AnimatedDisplay {
     public void render(Graphics2D gOriginal, double interpolation) {
         Graphics2D g = (Graphics2D) gOriginal.create();
         Assets assets = gameState.getAssets();
-        g.setTransform(getGlobalTransform().getTransform());
+        final int blockWidth = gameState.getResolution().getBlockWidth();
+
+        g.setTransform(getGlobalTransform().tScale(blockWidth).getTransform());
         g.drawImage(assets.getSprite(Assets.SpriteType.SCORE_DISPLAY),
                 0, 0, null);
 

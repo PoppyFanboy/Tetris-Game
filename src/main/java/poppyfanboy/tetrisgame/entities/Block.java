@@ -4,11 +4,9 @@ import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Composite;
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 
-import java.util.Objects;
 import poppyfanboy.tetrisgame.graphics.animation2D.AcceleratedMoveAnimation;
 import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 import poppyfanboy.tetrisgame.graphics.animation2D.BlockBreakAnimation;
@@ -67,10 +65,8 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
     }
 
     public void startDropAnimation() {
-        final int blockWidth = gameState.getBlockWidth();
         AcceleratedMoveAnimation animation = new AcceleratedMoveAnimation(
-                coords, tileCoords.times(blockWidth).toDouble(), 0.0,
-                blockWidth);
+                coords, tileCoords.toDouble(), 0.0);
         gameState.getAnimationManager().addAnimation(this,
                 LockedBlockAnimationType.DROP, animation);
     }
@@ -110,17 +106,14 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public Transform getLocalTransform() {
-        final int blockWidth = gameState.getBlockWidth();
-        DoubleVector rotationPivot = coords.add(
-                new DoubleVector(blockWidth / 2.0, blockWidth / 2.0));
-
+        DoubleVector rotationPivot = coords.add(new DoubleVector(0.5, 0.5));
         return new Transform(coords)
-            .combine(Transform.getRotation(rotationAngle, rotationPivot));
+                .combine(Transform.getRotation(rotationAngle, rotationPivot));
     }
 
     @Override
-    public void render(Graphics2D g, double interpolation) {
-        final int blockWidth = gameState.getBlockWidth();
+    public void render(Graphics2D gOriginal, double interpolation) {
+        final int blockWidth = gameState.getResolution().getBlockWidth();
         // draw blocks as they are on the tile field
         /*g.setColor(BlockColor.BLUE.getColor());
         g.setStroke(new BasicStroke(2));
@@ -128,15 +121,11 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
                 tileCoords.getY() * blockWidth + 20,
                 blockWidth, blockWidth);*/
 
-        double rotationAngle
-                = getGlobalTransform().getRotation().getAngle();
+        double rotationAngle = getGlobalTransform().tScale(blockWidth)
+                .getRotation().getAngle();
+        Graphics2D g = (Graphics2D) gOriginal.create();
 
-        AffineTransform oldTransform = g.getTransform();
-        Composite oldComposite = g.getComposite();
-
-        Transform globalTransform = getGlobalTransform();
-        AffineTransform transform = globalTransform.getTransform();
-        g.setTransform(transform);
+        g.setTransform(getGlobalTransform().tScale(blockWidth).getTransform());
 
         Assets assets = gameState.getAssets();
         BufferedImage left
@@ -176,24 +165,21 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
                     (int) (blockWidth * scale),
                     (int) (blockWidth * scale), null);
         }
-
-        g.setComposite(oldComposite);
-        g.setTransform(oldTransform);
-
         // render convex hull
         /*DoubleVector[] convexHull = this.getConvexHull();
         g.setColor(BlockColor.BLUE.getColor());
         g.setStroke(new BasicStroke(2));
         g.drawPolygon(DoubleVector.getIntX(convexHull),
                 DoubleVector.getIntY(convexHull), convexHull.length);*/
+
+        g.dispose();
     }
 
     @Override
     public DoubleVector[] getVertices() {
-        final int blockWidth = gameState.getBlockWidth();
         return getGlobalTransform().apply(new DoubleVector[] {
-            dVect(0, 0), dVect(0, blockWidth),
-            dVect(blockWidth, 0), dVect(blockWidth, blockWidth)});
+            dVect(0, 0), dVect(0, 1.0),
+            dVect(1.0, 0), dVect(1.0, 1.0)});
     }
 
     @Override

@@ -55,8 +55,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         this.tileCoords = tileCoords;
         this.parentEntity = parentEntity;
 
-        final int blockWidth = gameState.getBlockWidth();
-        coords = tileCoords.times(blockWidth).toDouble();
+        coords = tileCoords.toDouble();
         rotationAngle = rotation.getAngle();
 
         DoubleVector rotationPivot
@@ -71,7 +70,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
                 if (shapeType.isSolid(x, y, rotation)) {
                     blocks.add(new Block(gameState, tileCoords.add(x, y),
                         rotationPivot, blockColors[solidBlockIndex], this,
-                        new DoubleVector(x * blockWidth, y * blockWidth)));
+                        new DoubleVector(x, y)));
                     solidBlockIndex++;
                 }
             }
@@ -95,11 +94,8 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
      */
     public Block[] getBlocks(GameField gameField) {
         Block[] blocksCopy = new Block[blocks.length];
-        final int blockWidth = gameState.getBlockWidth();
         for (int i = 0; i < blocksCopy.length; i++) {
-            DoubleVector newRefCoords
-                    = blocks[i].getTileCoords().times(blockWidth)
-                    .toDouble();
+            DoubleVector newRefCoords = blocks[i].getTileCoords().toDouble();
             blocksCopy[i] = new Block(blocks[i], gameField, newRefCoords);
         }
         return blocksCopy;
@@ -140,10 +136,8 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
     }
 
     public void startDropAnimation(int duration, AnimationEndHandler callback) {
-        final int blockWidth = gameState.getBlockWidth();
         HVLinearAnimation animation = HVLinearAnimation.getVerticalAnimation(
-                coords.getY(), tileCoords.getY() * blockWidth, duration,
-                blockWidth);
+                coords.getY(), tileCoords.getY(), duration, 1.0);
         gameState.getAnimationManager().addAnimation(this,
                 ActiveShapeAnimationType.DROP,
                 animation, callback);
@@ -154,10 +148,8 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
     }
 
     public void startUserControlAnimation(int duration) {
-        final int blockWidth = gameState.getBlockWidth();
         HVLinearAnimation animation = HVLinearAnimation.getHorizontalAnimation(
-                coords.getX(), tileCoords.getX() * blockWidth,
-                duration, blockWidth);
+                coords.getX(), tileCoords.getX(), duration, 1.0);
         gameState.getAnimationManager().addAnimation(this,
                 ActiveShapeAnimationType.LEFT_RIGHT,
                 animation);
@@ -174,9 +166,8 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
 
     public void startWallKickAnimation(int duration,
             AnimationEndHandler callback) {
-        final int blockWidth = gameState.getBlockWidth();
         MoveAnimation animation = new MoveAnimation(coords,
-                tileCoords.times(blockWidth).toDouble(), duration, blockWidth);
+                tileCoords.toDouble(), duration, 1.0);
         gameState.getAnimationManager().addAnimation(this,
                 ActiveShapeAnimationType.WALL_KICK, animation, callback);
     }
@@ -243,10 +234,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public Transform getLocalTransform() {
-        final int blockWidth = gameState.getBlockWidth();
-
-        DoubleVector rotationPivot
-            = coords.add(shapeType.getRotationPivot().times(blockWidth));
+        DoubleVector rotationPivot = coords.add(shapeType.getRotationPivot());
         return new Transform(coords)
             .combine(Transform.getRotation(rotationAngle, rotationPivot));
     }
@@ -304,12 +292,9 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public DoubleVector[] getConvexHull() {
-        final int blockWidth = gameState.getBlockWidth();
-
         DoubleVector[] convexHull = shapeType.getConvexHull();
         for (int i = 0; i < convexHull.length; i++) {
-            convexHull[i] = getLocalTransform()
-                    .apply(convexHull[i].times(blockWidth));
+            convexHull[i] = getLocalTransform().apply(convexHull[i]);
         }
         return convexHull;
     }
