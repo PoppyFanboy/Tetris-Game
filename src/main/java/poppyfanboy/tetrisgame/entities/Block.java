@@ -35,6 +35,7 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
     private double rotationAngle = 0;
     private double scale = 1.0;
     private double opacity = 1.0;
+    private double brightness = 0.0;
 
     /**
      * Creates a block entity at the specified position on the game field.
@@ -132,6 +133,7 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
                 = assets.getColoredBlockLeft(rotationAngle, blockColor);
         BufferedImage right
                 = assets.getColoredBlockRight(rotationAngle, blockColor);
+
         int n = Assets.LIGHTING_SAMPLES_COUNT;
         double progress = (n * (Rotation.normalizeAngle(rotationAngle)
                 + Math.PI) / (2 * Math.PI)) % 1;
@@ -149,9 +151,8 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
                     (int) (blockWidth * scale), null);
         }
 
-        float alpha = (float) (
-                (progress < 0.5 ? progress : 1 - progress)
-                * opacity);
+        float alpha = (float)
+                ((progress < 0.5 ? progress : 1 - progress) * opacity);
 
         g.setComposite(AlphaComposite
                 .getInstance(AlphaComposite.SRC_OVER, alpha));
@@ -165,6 +166,17 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
                     (int) (blockWidth * scale),
                     (int) (blockWidth * scale), null);
         }
+
+        if (brightness != 0) {
+            g.setComposite(AlphaComposite
+                    .getInstance(AlphaComposite.SRC_OVER, (float) brightness));
+            g.drawImage(assets.getGhostBlock(),
+                    (int) (blockWidth * (1 - scale) / 2),
+                    (int) (blockWidth * (1 - scale) / 2),
+                    (int) (blockWidth * scale),
+                    (int) (blockWidth * scale), null);
+        }
+
         // render convex hull
         /*DoubleVector[] convexHull = this.getConvexHull();
         g.setColor(BlockColor.BLUE.getColor());
@@ -215,13 +227,13 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
     @Override
     public void setOpacity(double newOpacity) {
         newOpacity =  Math.min(Math.max(newOpacity, 0), 1);
-
-        if (newOpacity < 0 || newOpacity > 1.0) {
-            throw new IllegalArgumentException(String.format(
-                    "The value of the opacity must lie within the"
-                    + " [0, 1] interval. Got: newOpacity = %f.", newOpacity));
-        }
         opacity = newOpacity;
+    }
+
+    @Override
+    public void setBrightness(double newBrightness) {
+        newBrightness = Math.min(Math.max(newBrightness, 0), 1);
+        brightness = newBrightness;
     }
 
     @Override

@@ -54,6 +54,7 @@ public class Assets implements AutoCloseable {
     // (from the -PI angle and up not including PI)
     private EnumMap<BlockColor, BufferedImage[]> renderedGems
             = new EnumMap<>(BlockColor.class);
+    private BufferedImage ghostGem;
 
     private EnumMap<SpriteSheetEntry, BufferedImage> spriteSheetEntries
             = new EnumMap<>(SpriteSheetEntry.class);
@@ -87,6 +88,8 @@ public class Assets implements AutoCloseable {
             }
             renderedGems.put(color, sprites);
         }
+        ghostGem = generateGhostBlock(RENDER_BLOCK_WIDTH, RENDER_BLOCK_WIDTH,
+                resolution.getBlockWidth(), resolution.getBlockWidth());
 
         try {
             GraphicsEnvironment ge
@@ -132,6 +135,10 @@ public class Assets implements AutoCloseable {
         return renderedGems.get(blockColor)[index % LIGHTING_SAMPLES_COUNT];
     }
 
+    public BufferedImage getGhostBlock() {
+        return ghostGem;
+    }
+
     public BufferedImage getSpriteSheetEntry(SpriteSheetEntry spriteType) {
         return spriteSheetEntries.get(spriteType);
     }
@@ -143,6 +150,38 @@ public class Assets implements AutoCloseable {
     @Override
     public void close() {
         // dispose the resources
+    }
+
+    private BufferedImage generateGhostBlock(int renderWidth, int renderHeight,
+            int width, int height) {
+        // transparent image preset
+        BufferedImage block = new BufferedImage(width, height,
+                BufferedImage.TYPE_INT_ARGB_PRE);
+
+        DoubleVector[] normalizedContour = {
+                DoubleVector.dVect(0, 0.25), DoubleVector.dVect(0.25, 0),
+                DoubleVector.dVect(0.75, 0), DoubleVector.dVect(1, 0.25),
+                DoubleVector.dVect(1, 0.75), DoubleVector.dVect(0.75, 1),
+                DoubleVector.dVect(0.25, 1), DoubleVector.dVect(0, 0.75)
+        };
+        DoubleVector[] outerContour = getPolygon(renderWidth, renderHeight,
+                normalizedContour, 1.0, renderWidth / 16.0);
+        // base polygon
+        Graphics2D g2d = block.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
+                RenderingHints.VALUE_RENDER_QUALITY);
+
+        AffineTransform transform = new AffineTransform();
+        transform.scale((double) width / renderWidth,
+                (double) height / renderHeight);
+        g2d.setTransform(transform);
+
+        g2d.setColor(new Color(255, 255, 255));
+        g2d.fillPolygon(DoubleVector.getIntX(outerContour),
+                DoubleVector.getIntY(outerContour), outerContour.length);
+        return block;
     }
 
     private BufferedImage generateBlock(

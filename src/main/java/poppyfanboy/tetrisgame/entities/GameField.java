@@ -588,11 +588,11 @@ public class GameField extends Entity implements TileField, Controllable {
         g.drawImage(frame, -blockWidth, -blockWidth, null);
         g.dispose();
 
-        if (activeShape != null) {
-            activeShape.render(gOriginal, interpolation);
-        }
         for (Block block : lockedBlocks.values()) {
             block.render(gOriginal, interpolation);
+        }
+        if (activeShape != null) {
+            activeShape.render(gOriginal, interpolation);
         }
     }
 
@@ -628,6 +628,17 @@ public class GameField extends Entity implements TileField, Controllable {
         final boolean shapeControllable = state.shapeFalling()
                 && (statesQueue.peek() == null
                         || statesQueue.peek().shapeFalling());
+
+        final int frameSize = activeShape == null
+                ? 0
+                : activeShape.getShapeType().getFrameSize();
+        Collection<Block> neighborBlocks = activeShape == null
+                ? Collections.emptyList()
+                : lockedBlocks.subMap(
+                    activeShape.getTileCoords().add(-2, -2), true,
+                    activeShape.getTileCoords()
+                            .add(frameSize + 2, frameSize + 2), true
+                ).values();
 
         for (EnumMap.Entry<InputKey, KeyState> key : inputs.entrySet()) {
             if (key.getValue() == KeyState.PRESSED) {
@@ -689,7 +700,7 @@ public class GameField extends Entity implements TileField, Controllable {
                     activeShape.getTileCoords(), newRotation, this)) {
                 activeShape.rotate(rotationDirection);
                 activeShape.startRotationAnimation(angleShift, isClockwise,
-                        userControlAnimationDuration);
+                        userControlAnimationDuration, neighborBlocks);
                 lastMovementIsRotation = true;
             } else {
                 IntVector[] wallKicks = rotationDirection == Rotation.RIGHT
@@ -699,10 +710,12 @@ public class GameField extends Entity implements TileField, Controllable {
                     if (Shape.fits(activeShape, activeShape.getShapeType(),
                             activeShape.getTileCoords().add(shift),
                             newRotation, this)) {
+
                         // rotate and wall kick
                         activeShape.rotate(rotationDirection);
                         activeShape.startRotationAnimation(angleShift,
-                                isClockwise, userControlAnimationDuration);
+                                isClockwise, userControlAnimationDuration,
+                                neighborBlocks);
 
                         activeShape.tileShift(shift);
                         activeShape.startWallKickAnimation(

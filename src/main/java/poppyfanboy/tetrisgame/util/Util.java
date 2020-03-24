@@ -5,9 +5,12 @@ import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import static java.lang.Math.round;
+import static poppyfanboy.tetrisgame.util.DoubleVector.dVect;
 
 public class Util {
     /**
@@ -346,5 +349,69 @@ public class Util {
             }
         }
         return tiledImage;
+    }
+
+    public static boolean convexHullsIntersect(List<DoubleVector> convexHull1,
+            List<DoubleVector> convexHull2) {
+        /*System.out.println(convexHull1);
+        System.out.println(convexHull2);
+        System.out.println("--");*/
+
+        for (int i = 0; i < convexHull1.size(); i++) {
+            DoubleVector p1 = convexHull1.get(i);
+            DoubleVector p2 = convexHull1.get((i + 1) % convexHull1.size());
+            for (int j = 0; j < convexHull2.size(); j++) {
+                DoubleVector q1 = convexHull2.get(j);
+                DoubleVector q2 = convexHull2.get((j + 1) % convexHull2.size());
+                if (segmentsIntersect(p1, p2, q1, q2)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static boolean segmentsIntersect(DoubleVector p1, DoubleVector p2,
+            DoubleVector q1, DoubleVector q2) {
+        // edge cases
+        if (Math.max(p1.getX(), p2.getX()) < Math.min(q1.getX(), q2.getX())) {
+            return false;
+        }
+        if (Math.max(q1.getX(), q2.getX()) < Math.min(p1.getX(), p2.getX())) {
+            return false;
+        }
+        if (Math.max(p1.getY(), p2.getY()) < Math.min(q1.getY(), q2.getY())) {
+            return false;
+        }
+        if (Math.max(q1.getY(), q2.getY()) < Math.min(p1.getY(), p2.getY())) {
+            return false;
+        }
+        double kp = (p1.getY() - p2.getY()) / (p1.getX() - p2.getX());
+        double bp = p1.getY() - kp * p1.getX();
+        double kq = (q1.getY() - q2.getY()) / (q1.getX() - q2.getX());
+        double bq = q1.getY() - kq * q1.getX();
+
+        // parallel lines
+        if (kp == kq || Double.isInfinite(kp) && Double.isInfinite(kq)) {
+            return false;
+        }
+        // first segment is vertical
+        if (Double.isInfinite(kp)) {
+            double yIntersect = kq * p1.getX() + bq;
+            return yIntersect < Math.max(p1.getY(), p2.getY())
+                    && yIntersect > Math.min(p1.getY(), p2.getY());
+        }
+        // second segment is vertical
+        if (Double.isInfinite(kq)) {
+            double yIntersect = kp * q1.getX() + bp;
+            return yIntersect < Math.max(q1.getY(), q2.getY())
+                    && yIntersect > Math.min(q1.getY(), q2.getY());
+        }
+
+        double xIntersect = (bq - bp) / (kp - kq);
+        return xIntersect > Math.max(Math.min(p1.getX(), p2.getX()),
+                        Math.min(q1.getX(), q2.getX()))
+                && Math.min(Math.max(p1.getX(), p2.getX()),
+                        Math.max(q1.getX(), q2.getX())) > xIntersect;
     }
 }

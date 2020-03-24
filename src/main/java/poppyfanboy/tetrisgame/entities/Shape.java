@@ -4,11 +4,11 @@ import java.awt.Graphics2D;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
-import java.util.Objects;
-import static poppyfanboy.tetrisgame.entities.GameField.GameFieldState.SHAPE_SOFT_DROP;
 import poppyfanboy.tetrisgame.graphics.AnimationEndHandler;
+import poppyfanboy.tetrisgame.graphics.animation2D.GhostModeAnimation;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.graphics.animation2D.HVLinearAnimation;
@@ -18,7 +18,9 @@ import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 import poppyfanboy.tetrisgame.util.Rotation;
+
 import poppyfanboy.tetrisgame.util.Transform;
+import poppyfanboy.tetrisgame.util.Util;
 
 /**
  * In a nutshell this is just a bunch of glued blocks, that can be rotated
@@ -38,6 +40,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
     private DoubleVector coords;
     private Entity parentEntity;
     private double opacity = 1.0;
+    private double brightness = 0.0;
     private double scale = 1.0;
 
     /**
@@ -156,12 +159,44 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
     }
 
     public void startRotationAnimation(double angleShift, boolean isClockwise,
-            int duration) {
+            int duration, Collection<Block> neighborBlocks) {
+        enterGhostMode(angleShift, neighborBlocks, duration);
+
         RotationAnimation animation = new RotationAnimation(rotationAngle,
                 rotationAngle + angleShift, isClockwise, duration, Math.PI / 2);
         gameState.getAnimationManager().addAnimation(this,
                 ActiveShapeAnimationType.ROTATION,
                 animation);
+    }
+
+    private void enterGhostMode(double angleShift,
+            Collection<Block> neighborBlocks, int duration) {
+        final int samplesCount = 3;
+        double oldRotationAngle = rotationAngle;
+        DoubleVector oldCoords = coords;
+
+        for (int i = 0; i < samplesCount; i++) {
+            rotationAngle += angleShift / samplesCount;
+            coords = coords.add(tileCoords.subtract(oldCoords)
+                    .times(1.0 / samplesCount));
+            List<DoubleVector> shapeConvexHull
+                    = new ArrayList<>(Arrays.asList(DoubleVector
+                    .getConvexHull(this.getVertices(), 1e-8)));
+
+            for (Block block : neighborBlocks) {
+                List<DoubleVector> blockConvexHull
+                        = new ArrayList<>(Arrays.asList(block.getConvexHull()));
+                if (Util.convexHullsIntersect(shapeConvexHull,
+                        blockConvexHull)) {
+                    this.startGhostModeAnimation(duration);
+                    rotationAngle = oldRotationAngle;
+                    coords = oldCoords;
+                    return;
+                }
+            }
+        }
+        rotationAngle = oldRotationAngle;
+        coords = oldCoords;
     }
 
     public void startWallKickAnimation(int duration,
@@ -170,6 +205,12 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
                 tileCoords.toDouble(), duration, 1.0);
         gameState.getAnimationManager().addAnimation(this,
                 ActiveShapeAnimationType.WALL_KICK, animation, callback);
+    }
+
+    public void startGhostModeAnimation(int duration) {
+        GhostModeAnimation animation = new GhostModeAnimation(duration);
+        gameState.getAnimationManager().addAnimation(this,
+                ActiveShapeAnimationType.GHOST_MODE, animation);
     }
 
     @Override
@@ -213,6 +254,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
     public void render(Graphics2D g, double interpolation) {
         for (Block block : blocks) {
             block.setOpacity(opacity);
+            block.setBrightness(brightness);
             block.setScale(scale);
             block.render(g, interpolation);
         }
@@ -266,13 +308,14 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public void setOpacity(double newOpacity) {
-        if (newOpacity < 0 || newOpacity > 1.0) {
-            throw new IllegalArgumentException(String.format(
-                    "The value of the opacity must lie within the"
-                     + " [0, 1] interval. Got: newOpacity = %f.",
-                     newOpacity));
-        }
+        newOpacity = Math.max(Math.min(newOpacity, 1.0), 0);
         opacity = newOpacity;
+    }
+
+    @Override
+    public void setBrightness(double newBrightness) {
+        newBrightness = Math.max(Math.min(newBrightness, 1.0), 0);
+        brightness = newBrightness;
     }
 
     @Override

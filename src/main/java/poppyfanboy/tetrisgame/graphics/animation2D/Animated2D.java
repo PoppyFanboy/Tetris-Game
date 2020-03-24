@@ -31,4 +31,6 @@ public interface Animated2D {
      *          argument does not lie within the {@code [0, 1]} interval.
      */
     void setOpacity(double newOpacity);
+
+    void setBrightness(double newBrightness);
 }

@@ -56,6 +56,10 @@ public class IntVector {
         return new IntVector(x * coefficient, y * coefficient);
     }
 
+    public DoubleVector times(double coefficient) {
+        return new DoubleVector(x * coefficient, y * coefficient);
+    }
+
     public DoubleVector toDouble() {
         return new DoubleVector(x, y);
     }

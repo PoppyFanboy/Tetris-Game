@@ -25,7 +25,6 @@ public abstract class Entity {
      * of the entity, this method is expected to be overridden.
      */
     public DoubleVector[] getConvexHull() {
-
         return DoubleVector.getConvexHull(getVertices(), 1e-8);
     }
 
