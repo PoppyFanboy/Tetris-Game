@@ -45,6 +45,12 @@ public final class AnimatedObject<T, K extends Enum<K>> {
         }
     }
 
+    public void tempFastForward(double ticksCount) {
+        for (AnimationWrapper<T> animation : animations.values()) {
+            animation.tempFastForward(ticksCount);
+        }
+    }
+
     public void perform() {
         animations.values().forEach(AnimationWrapper::perform);
     }

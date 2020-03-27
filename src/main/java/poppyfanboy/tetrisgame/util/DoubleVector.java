@@ -115,6 +115,10 @@ public class DoubleVector {
         return this.subtract(pivot).rotate(angle).add(pivot);
     }
 
+    public IntVector toInt() {
+        return new IntVector((int) x, (int) y);
+    }
+
     public double length() {
         return Math.sqrt(x * x + y * y);
     }

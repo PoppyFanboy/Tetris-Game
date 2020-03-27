@@ -28,6 +28,14 @@ public class RotationAnimation extends Animation<Animated2D> {
         this.defaultAngle = defaultAngle;
     }
 
+    public double getStartAngle() {
+        return startAngle;
+    }
+
+    public double getEndAngle() {
+        return endAngle;
+    }
+
     @Override
     public void perform(Animated2D object, int currentDuration,
             double interpolation) {
@@ -93,7 +101,7 @@ public class RotationAnimation extends Animation<Animated2D> {
             int currentDuration, int duration, double interpolation) {
         double progress = duration == 0
                 ? 1.0
-                : (currentDuration + interpolation) / duration;
+                : Math.min((currentDuration + interpolation) / duration, 1.0);
         return startAngle + (endAngle - startAngle) * progress;
     }
 }

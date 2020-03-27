@@ -99,6 +99,8 @@ public abstract class Entity {
      * Returns a set of vertices of the entity which form a polygon that
      * surrounds the entity. There might be duplicates and the returned
      * set of vertices does not necessarily need to form a convex hull.
+     *
+     * Only the local transform is applied to the returned vertices.
      */
     public DoubleVector[] getVertices() {
         return null;

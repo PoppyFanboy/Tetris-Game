@@ -1,12 +1,10 @@
 package poppyfanboy.tetrisgame.entities;
 
 import java.awt.Graphics2D;
-import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.util.AbstractQueue;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -225,6 +223,17 @@ public class GameField extends Entity implements TileField, Controllable {
                 if (Shape.fits(activeShape, activeShape.getShapeType(),
                         activeShape.getTileCoords().add(iVect(0, 1)),
                         activeShape.getRotation(), this)) {
+
+                    final int frameSize
+                            = activeShape.getShapeType().getFrameSize();
+                    Collection<Block> neighborBlocks = activeShape == null
+                            ? Collections.emptyList()
+                            : lockedBlocks.subMap(
+                            activeShape.getTileCoords().add(-2, -2), true,
+                            activeShape.getTileCoords()
+                                    .add(frameSize + 2, frameSize + 2), true
+                    ).values();
+
                     activeShape.tileShift(iVect(0, 1));
                     int duration = state == SHAPE_FORCED_DROP
                             ? forcedDropDuration
@@ -233,7 +242,7 @@ public class GameField extends Entity implements TileField, Controllable {
                         reason -> {
                             if (reason.finished())
                                 statesQueue.offer(state);
-                        });
+                        }, neighborBlocks, state == SHAPE_SOFT_DROP);
                     lastMovementIsRotation = false;
                 } else {
                     statesQueue.offer(SHAPE_FELL);
@@ -648,7 +657,8 @@ public class GameField extends Entity implements TileField, Controllable {
                             break;
                         }
                         state = SHAPE_FORCED_DROP;
-                        activeShape.startDropAnimation(forcedDropDuration);
+                        activeShape.startDropAnimation(forcedDropDuration,
+                                neighborBlocks, false);
                         break;
                     case ARROW_LEFT:
                         xShift--;
@@ -673,7 +683,8 @@ public class GameField extends Entity implements TileField, Controllable {
                             break;
                         }
                         state = SHAPE_SOFT_DROP;
-                        activeShape.startDropAnimation(softDropDuration);
+                        activeShape.startDropAnimation(softDropDuration,
+                                neighborBlocks, true);
                         break;
                 }
             }

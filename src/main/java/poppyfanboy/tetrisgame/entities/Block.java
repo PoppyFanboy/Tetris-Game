@@ -1,23 +1,20 @@
 package poppyfanboy.tetrisgame.entities;
 
 import java.awt.AlphaComposite;
-import java.awt.BasicStroke;
-import java.awt.Composite;
 import java.awt.Graphics2D;
-import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 
+import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.graphics.animation2D.AcceleratedMoveAnimation;
 import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 import poppyfanboy.tetrisgame.graphics.animation2D.BlockBreakAnimation;
-import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.graphics.Assets;
-import poppyfanboy.tetrisgame.states.GameState;
+import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.util.DoubleVector;
-
-import static poppyfanboy.tetrisgame.util.DoubleVector.dVect;
 import poppyfanboy.tetrisgame.util.Rotation;
 import poppyfanboy.tetrisgame.util.Transform;
+
+import static poppyfanboy.tetrisgame.util.DoubleVector.dVect;
 
 /**
  * Represents a single solid block on the game field.
@@ -189,7 +186,7 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public DoubleVector[] getVertices() {
-        return getGlobalTransform().apply(new DoubleVector[] {
+        return getLocalTransform().apply(new DoubleVector[] {
             dVect(0, 0), dVect(0, 1.0),
             dVect(1.0, 0), dVect(1.0, 1.0)});
     }

@@ -18,9 +18,7 @@ import poppyfanboy.tetrisgame.graphics.animation2D.Animated2D;
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 import poppyfanboy.tetrisgame.util.Rotation;
-
 import poppyfanboy.tetrisgame.util.Transform;
-import poppyfanboy.tetrisgame.util.Util;
 
 /**
  * In a nutshell this is just a bunch of glued blocks, that can be rotated
@@ -138,16 +136,22 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         return shapeType;
     }
 
-    public void startDropAnimation(int duration, AnimationEndHandler callback) {
+    public void startDropAnimation(int duration, AnimationEndHandler callback,
+            Collection<Block> neighborBlocks, boolean enableGhostMode) {
         HVLinearAnimation animation = HVLinearAnimation.getVerticalAnimation(
                 coords.getY(), tileCoords.getY(), duration, 1.0);
         gameState.getAnimationManager().addAnimation(this,
                 ActiveShapeAnimationType.DROP,
                 animation, callback);
+
+        if (enableGhostMode) {
+            enterGhostMode(neighborBlocks, duration);
+        }
     }
 
-    public void startDropAnimation(int duration) {
-        startDropAnimation(duration, null);
+    public void startDropAnimation(int duration,
+            Collection<Block> neighborBlocks, boolean enableGhostMode) {
+        startDropAnimation(duration, null, neighborBlocks, enableGhostMode);
     }
 
     public void startUserControlAnimation(int duration) {
@@ -160,43 +164,60 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
 
     public void startRotationAnimation(double angleShift, boolean isClockwise,
             int duration, Collection<Block> neighborBlocks) {
-        enterGhostMode(angleShift, neighborBlocks, duration);
-
         RotationAnimation animation = new RotationAnimation(rotationAngle,
                 rotationAngle + angleShift, isClockwise, duration, Math.PI / 2);
         gameState.getAnimationManager().addAnimation(this,
                 ActiveShapeAnimationType.ROTATION,
                 animation);
+
+        enterGhostMode(neighborBlocks, duration);
     }
 
-    private void enterGhostMode(double angleShift,
-            Collection<Block> neighborBlocks, int duration) {
-        final int samplesCount = 3;
-        double oldRotationAngle = rotationAngle;
+    private void enterGhostMode(Collection<Block> neighborBlocks,
+            int duration) {
+        final double eps = 0.1;
+        final int samplesCount = 4;
         DoubleVector oldCoords = coords;
+        double oldRotationAngle = rotationAngle;
 
         for (int i = 0; i < samplesCount; i++) {
-            rotationAngle += angleShift / samplesCount;
-            coords = coords.add(tileCoords.subtract(oldCoords)
-                    .times(1.0 / samplesCount));
-            List<DoubleVector> shapeConvexHull
-                    = new ArrayList<>(Arrays.asList(DoubleVector
-                    .getConvexHull(this.getVertices(), 1e-8)));
+            gameState.getAnimationManager().tempFastForward(this,
+                    (double) i / samplesCount * duration);
+            DoubleVector[] shapeConvexHull = shapeType.getConvexHull();
 
-            for (Block block : neighborBlocks) {
-                List<DoubleVector> blockConvexHull
-                        = new ArrayList<>(Arrays.asList(block.getConvexHull()));
-                if (Util.convexHullsIntersect(shapeConvexHull,
-                        blockConvexHull)) {
-                    this.startGhostModeAnimation(duration);
-                    rotationAngle = oldRotationAngle;
-                    coords = oldCoords;
-                    return;
+            for (int j = 0; j < shapeConvexHull.length; j++) {
+                shapeConvexHull[j]
+                        = getGlobalTransform().apply(shapeConvexHull[j]);
+            }
+
+            for (DoubleVector shapeCoords : shapeConvexHull) {
+                DoubleVector coords1 = new DoubleVector(
+                        shapeCoords.getX() + eps, shapeCoords. getY() + eps);
+                DoubleVector coords2 = new DoubleVector(
+                        shapeCoords.getX() - eps, shapeCoords. getY() - eps);
+
+                for (Block block : neighborBlocks) {
+                    if (aabbInside(coords1, block.getGlobalTransform()
+                                    .apply(new DoubleVector(0, 0)))
+                            && aabbInside(coords2, block.getGlobalTransform()
+                                    .apply(new DoubleVector(0, 0)))) {
+                        this.startGhostModeAnimation(duration + 5);
+                        coords = oldCoords;
+                        rotationAngle = oldRotationAngle;
+                    }
                 }
             }
         }
-        rotationAngle = oldRotationAngle;
         coords = oldCoords;
+        rotationAngle = oldRotationAngle;
+    }
+
+    public static boolean aabbInside(DoubleVector point,
+            DoubleVector leftCorner) {
+        return leftCorner.getX() < point.getX()
+                && point.getX() < leftCorner.getX() + 1
+                && leftCorner.getY() < point.getY()
+                && point.getY() < leftCorner.getY() + 1;
     }
 
     public void startWallKickAnimation(int duration,
@@ -344,7 +365,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
 
     @Override
     public String toString() {
-        return String.format("[%s shape type, %s rotated, coords: %s, "
+        return String.format("[%s shape type, %s rotated, coords: %s,"
                 + " blocks: %s]", shapeType, rotation,
                 tileCoords, Arrays.toString(blocks));
     }

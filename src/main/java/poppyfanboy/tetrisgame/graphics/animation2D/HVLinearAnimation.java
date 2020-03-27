@@ -109,7 +109,7 @@ public class HVLinearAnimation extends Animation<Animated2D> {
             double interpolation) {
         double progress = duration == 0
                 ? 1.0
-                : (currentDuration + interpolation) / duration;
+                : Math.min((currentDuration + interpolation) / duration, 1.0);
         return startCoords * (1 - progress) + endCoords * progress;
     }
 }

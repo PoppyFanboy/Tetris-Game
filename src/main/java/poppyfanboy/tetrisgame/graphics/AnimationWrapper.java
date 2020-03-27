@@ -62,6 +62,11 @@ public class AnimationWrapper<T> {
         }
     }
 
+    public void tempFastForward(double ticksCount) {
+        animation.perform(object, duration + (int) ticksCount,
+                ticksCount - ((int) ticksCount));
+    }
+
     public void perform() {
         animation.perform(object, duration, 0.0);
     }

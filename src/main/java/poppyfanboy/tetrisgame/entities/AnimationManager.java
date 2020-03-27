@@ -97,6 +97,10 @@ public class AnimationManager {
                 activeShapesAnimated);
     }
 
+    public void tempFastForward(Shape activeShape, double ticksCount) {
+        activeShapesAnimated.get(activeShape).tempFastForward(ticksCount);
+    }
+
     public void addAnimation(Block fallenBlock,
             LockedBlockAnimationType animationType,
             Animation<Animated2D> animation, AnimationEndHandler endHandler) {

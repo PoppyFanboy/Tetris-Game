@@ -37,7 +37,7 @@ public class MoveAnimation extends Animation<Animated2D> {
             double interpolation) {
         double progress = duration == 0
                 ? 1.0
-                : (currentDuration + interpolation) / duration;
+                : Math.min((currentDuration + interpolation) / duration, 1.0);
 
         DoubleVector currCoords = startCoords.times(1 - progress)
                 .add(endCoords.times(progress));
