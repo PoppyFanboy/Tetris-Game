@@ -79,11 +79,7 @@ public class GameField extends Entity implements TileField, Controllable {
             = new TreeMap<>(IntVector.Y_ORDER);
 
     private final Random random;
-    private int level;
-    private int score;
-    private int clearedLinesCount;
-    // difficult line clears in a row
-    private int comboCounter = 0;
+    private Score score = new Score();
     // used when scoring the T-spins
     private boolean lastMovementIsRotation;
 
@@ -149,6 +145,105 @@ public class GameField extends Entity implements TileField, Controllable {
         }
     }
 
+    private class Score {
+        List<ScoreSubscriber> subscriptions = new ArrayList<>();
+        // default values
+        int score = 0, lines = 0, level = 1;
+        int combo = 0;
+
+        void subscribe(ScoreSubscriber subscriber) {
+            subscriptions.add(subscriber);
+            subscriber.updateScore(score, lines, level);
+        }
+
+        void unsubscribe(ScoreSubscriber subscriber) {
+            subscriptions.remove(subscriber);
+        }
+
+        void reset() {
+            score = 0;
+            lines = 0;
+            level = 1;
+            combo = 0;
+        }
+
+        void resetCombo() {
+            combo = 0;
+        }
+
+        void update(int linesCleared) {
+            if (linesCleared != 0) {
+                calculateScore(linesCleared);
+                for (ScoreSubscriber sub : subscriptions) {
+                    sub.updateScore(score, lines, level);
+                }
+            }
+        }
+
+        private void calculateScore(int linesCleared) {
+            // update score/lines/level
+            lines += linesCleared;
+            boolean isTSpin = false;
+
+            if (activeShape.getShapeType() == TetrisShapeType.T_SHAPE
+                    && lastMovementIsRotation) {
+                IntVector centerBlockCoords
+                        = activeShape.getTileCoords().add(2, 2);
+                IntVector[] diagonals = new IntVector[4];
+                for (int i = 0; i < 2; i++) {
+                    for (int j = 0; j < 2; j++) {
+                        diagonals[i + j * 2]
+                                = centerBlockCoords.add(2 * i - 1, 2 * j - 1);
+                    }
+                }
+                int collisionsCount = 0;
+                for (IntVector coords : diagonals) {
+                    if (!GameField.this.rangeCheck(coords)
+                            || lockedBlocks.containsKey(coords)
+                            && !activeShape.checkCollision(coords)) {
+                        collisionsCount++;
+                    }
+                }
+                if (collisionsCount >= 3) {
+                    isTSpin = true;
+                }
+            }
+
+            // update combo counter
+            if (isTSpin || linesCleared == 4) {
+                combo += 1;
+            } else {
+                combo = 0;
+            }
+
+            int scoreAdded = 0;
+            if (linesCleared != 0) {
+                if (isTSpin) {
+                    if (linesCleared < 3) {
+                        scoreAdded += 4 * linesCleared - 1;
+                    } else {
+                        scoreAdded += 6;
+                    }
+                } else {
+                    if (linesCleared < 4) {
+                        scoreAdded += 2 * linesCleared - 1;
+                    } else {
+                        scoreAdded += 2 * linesCleared;
+                    }
+                }
+                if (combo >= 2) {
+                    scoreAdded = 12;
+                }
+            }
+            score += scoreAdded * 100;
+        }
+    }
+
+    @FunctionalInterface
+    public interface ScoreSubscriber {
+        void updateScore(int score, int lines, int level);
+    }
+
     /**
      * Creates an empty instance of a game field.
      *
@@ -181,12 +276,7 @@ public class GameField extends Entity implements TileField, Controllable {
     }
 
     public void start() {
-        level = 1;
-        score = 0;
-        clearedLinesCount = 0;
-        if (scoreDisplay != null) {
-            scoreDisplay.setValues(score, level, clearedLinesCount);
-        }
+        score.reset();
         statesQueue.offer(SHAPE_SPAWN_READY);
     }
 
@@ -276,7 +366,7 @@ public class GameField extends Entity implements TileField, Controllable {
                     animationManager.addLockedBlock(block);
                 }
                 animationManager.removeActiveShape(activeShape);
-                updateScore(removeFilledRows(startY, startY + 3));
+                score.update(removeFilledRows(startY, startY + 3));
                 activeShape = null;
 
                 for (Block block : brokenBlocks) {
@@ -351,7 +441,7 @@ public class GameField extends Entity implements TileField, Controllable {
         activeShape = new Shape(gameState, shapeType, Rotation.INITIAL,
                 SPAWN_COORDINATES, blockColors, this);
         lastMovementIsRotation = false;
-        comboCounter = 0;
+        score.resetCombo();
 
         animationManager.addActiveShape(activeShape);
         if (nextShapeDisplay != null) {
@@ -446,68 +536,6 @@ public class GameField extends Entity implements TileField, Controllable {
                 = Collections.unmodifiableList(droppedBlocksOldKeys);
 
         return clearedLinesIndices.size();
-    }
-
-    private void updateScore(int linesCleared) {
-        // update score/lines/level
-        clearedLinesCount += linesCleared;
-        boolean isTSpin = false;
-
-        if (activeShape.getShapeType() == TetrisShapeType.T_SHAPE
-                && lastMovementIsRotation) {
-            IntVector centerBlockCoords
-                    = activeShape.getTileCoords().add(2, 2);
-            IntVector[] diagonals = new IntVector[4];
-            for (int i = 0; i < 2; i++) {
-                for (int j = 0; j < 2; j++) {
-                    diagonals[i + j * 2]
-                            = centerBlockCoords.add(2 * i - 1, 2 * j - 1);
-                }
-            }
-            int collisionsCount = 0;
-            for (IntVector coords : diagonals) {
-                if (!this.rangeCheck(coords)
-                        || lockedBlocks.containsKey(coords)
-                        && !activeShape.checkCollision(coords)) {
-                    collisionsCount++;
-                }
-            }
-            if (collisionsCount >= 3) {
-                isTSpin = true;
-            }
-        }
-
-        // update combo counter
-        if (isTSpin || linesCleared == 4) {
-            comboCounter += 1;
-        } else {
-            comboCounter = 0;
-        }
-
-        int scoreAdded = 0;
-        if (linesCleared != 0) {
-            if (isTSpin) {
-                if (linesCleared < 3) {
-                    scoreAdded += 4 * linesCleared - 1;
-                } else {
-                    scoreAdded += 6;
-                }
-            } else {
-                if (linesCleared < 4) {
-                    scoreAdded += 2 * linesCleared - 1;
-                } else {
-                    scoreAdded += 2 * linesCleared;
-                }
-            }
-            if (comboCounter >= 2) {
-                scoreAdded = 12;
-            }
-        }
-        score += scoreAdded * 100;
-        if (scoreAdded != 0) {
-            scoreDisplay.setValues(score, level, clearedLinesCount);
-            scoreDisplay.startTransitionAnimation();
-        }
     }
 
     @Override
@@ -696,7 +724,8 @@ public class GameField extends Entity implements TileField, Controllable {
                     activeShape.getRotation(), this)) {
                 activeShape.tileShift(iVect(xShift, 0));
                 activeShape.startUserControlAnimation(
-                        userControlAnimationDuration);
+                        userControlAnimationDuration, neighborBlocks,
+                        state == SHAPE_SOFT_DROP);
                 lastMovementIsRotation = false;
             }
         }
@@ -753,7 +782,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
     public void setScoreDisplay(ScoreDisplay scoreDisplay) {
         this.scoreDisplay = scoreDisplay;
-        scoreDisplay.setValues(score, level, clearedLinesCount);
+        score.subscribe(scoreDisplay);
     }
 
     private static class StatesQueue extends AbstractQueue<GameFieldState> {

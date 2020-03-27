@@ -154,12 +154,17 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         startDropAnimation(duration, null, neighborBlocks, enableGhostMode);
     }
 
-    public void startUserControlAnimation(int duration) {
+    public void startUserControlAnimation(int duration,
+            Collection<Block> neighborBlocks, boolean enableGhostMode) {
         HVLinearAnimation animation = HVLinearAnimation.getHorizontalAnimation(
                 coords.getX(), tileCoords.getX(), duration, 1.0);
         gameState.getAnimationManager().addAnimation(this,
                 ActiveShapeAnimationType.LEFT_RIGHT,
                 animation);
+
+        if (enableGhostMode) {
+            enterGhostMode(neighborBlocks, duration);
+        }
     }
 
     public void startRotationAnimation(double angleShift, boolean isClockwise,

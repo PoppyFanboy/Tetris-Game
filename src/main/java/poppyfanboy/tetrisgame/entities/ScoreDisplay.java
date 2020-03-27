@@ -15,7 +15,8 @@ import poppyfanboy.tetrisgame.util.Transform;
  * An entity that displays the score, level and the number of lines cleared
  * in the game.
  */
-public class ScoreDisplay extends Entity implements AnimatedDisplay {
+public class ScoreDisplay extends Entity implements AnimatedDisplay,
+        GameField.ScoreSubscriber {
     public static final int DEFAULT_WIDTH = 7, DEFAULT_HEIGHT = 4;
 
     private final GameState gameState;
@@ -73,10 +74,12 @@ public class ScoreDisplay extends Entity implements AnimatedDisplay {
         return null;
     }
 
-    public void setValues(int score, int level, int clearedLinesCount) {
+    @Override
+    public void updateScore(int score, int level, int clearedLinesCount) {
         nextScore = score;
         this.level = level;
         this.clearedLinesCount = clearedLinesCount;
+        startTransitionAnimation();
     }
 
     private void drawLines(Graphics g, int lineIndex, String... lines) {

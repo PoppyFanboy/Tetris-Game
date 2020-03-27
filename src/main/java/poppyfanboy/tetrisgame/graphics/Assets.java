@@ -346,34 +346,22 @@ public class Assets implements AutoCloseable {
                 height * blockWidth, BufferedImage.TYPE_INT_ARGB_PRE);
         Graphics g = brickWall.getGraphics();
 
-        // upper-left corner
-        g.drawImage(getSpriteSheetEntry(SpriteSheetEntry.WALL_TILE_00),
-                0, 0, null);
-        // upper-right corner
-        g.drawImage(getSpriteSheetEntry(SpriteSheetEntry.WALL_TILE_20),
-                (width - 1) * blockWidth, 0, null);
-        // remaining upper blocks
-        BufferedImage upper
-                = getSpriteSheetEntry(SpriteSheetEntry.WALL_TILE_10);
-        for (int i = 1; i < width - 1; i++) {
-            g.drawImage(upper, i * blockWidth, 0, null);
-        }
         // blocks on the left side
         BufferedImage left = getSpriteSheetEntry(SpriteSheetEntry.WALL_TILE_01);
-        for (int i = 1; i < height; i++) {
+        for (int i = 0; i < height; i++) {
             g.drawImage(left, 0, i * blockWidth, null);
         }
         // blocks on the right side
         BufferedImage right
                 = getSpriteSheetEntry(SpriteSheetEntry.WALL_TILE_21);
-        for (int i = 1; i < height; i++) {
+        for (int i = 0; i < height; i++) {
             g.drawImage(right, (width - 1) * blockWidth, i * blockWidth, null);
         }
         // all remaining blocks (in the middle)
         BufferedImage tile
                 = getSpriteSheetEntry(SpriteSheetEntry.WALL_TILE_11);
         for (int x = 1; x < width - 1; x++) {
-            for (int y = 1; y < height; y++) {
+            for (int y = 0; y < height; y++) {
                 g.drawImage(tile, x * blockWidth, y * blockWidth, null);
             }
         }
@@ -382,12 +370,16 @@ public class Assets implements AutoCloseable {
 
     private BufferedImage generateGameFieldFrame(int width, int height) {
         int blockWidth = resolution.getBlockWidth();
+        int pixelWidth = resolution.getBlockWidth() / SPRITE_SHEET_GRID_WIDTH;
 
         BufferedImage left = getSpriteSheetEntry(
                 SpriteSheetEntry.GAME_FIELD_FRAME_TILE_LEFT);
+        BufferedImage right = Util.mirrorImage(left, false, true);
+        BufferedImage upper = Util.rotateImage(left, 1);
+        BufferedImage bottom = Util.mirrorImage(upper, true, false);
 
-        BufferedImage frame = Util.fillTiles(width + 2, height + 2, blockWidth,
-                null, left, null);
+        BufferedImage frame = new BufferedImage((width + 2) * blockWidth,
+                (height + 2) * blockWidth, BufferedImage.TYPE_INT_ARGB_PRE);
         Graphics g = frame.getGraphics();
 
         // corners
@@ -400,12 +392,21 @@ public class Assets implements AutoCloseable {
         BufferedImage bottomLeftCorner
                 = Util.mirrorImage(upperLeftCorner, true, false);
 
-        g.drawImage(upperLeftCorner, 0, 0, null);
-        g.drawImage(upperRightCorner, width * blockWidth, 0, null);
+        g.drawImage(upperLeftCorner, 0, pixelWidth, null);
+        g.drawImage(upperRightCorner, width * blockWidth, pixelWidth, null);
         g.drawImage(bottomRightCorner, width * blockWidth,
                 height * blockWidth, null);
         g.drawImage(bottomLeftCorner, 0, height * blockWidth, null);
 
+        for (int i = 2; i < width; i++) {
+            g.drawImage(upper, i * blockWidth, pixelWidth, null);
+            g.drawImage(bottom, i * blockWidth,
+                    (height + 1) * blockWidth, null);
+        }
+        for (int i = 2; i < height; i++) {
+            g.drawImage(left, 0, i * blockWidth, null);
+            g.drawImage(right, (width + 1) * blockWidth, i * blockWidth, null);
+        }
         return frame;
     }
 
