@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.List;
 
 import poppyfanboy.tetrisgame.graphics.AnimationEndHandler;
+import poppyfanboy.tetrisgame.graphics.animation2D.AcceleratedMoveAnimation;
 import poppyfanboy.tetrisgame.graphics.animation2D.GhostModeAnimation;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
@@ -165,6 +166,13 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         if (enableGhostMode) {
             enterGhostMode(neighborBlocks, duration);
         }
+    }
+
+    public void startHardDropAnimation(int duration) {
+        AcceleratedMoveAnimation animation = new AcceleratedMoveAnimation(
+                coords, tileCoords.toDouble(), 1.0);
+        gameState.getAnimationManager().addAnimation(this,
+                ActiveShapeAnimationType.DROP, animation);
     }
 
     public void startRotationAnimation(double angleShift, boolean isClockwise,
