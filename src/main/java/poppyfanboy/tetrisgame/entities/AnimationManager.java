@@ -287,7 +287,7 @@ enum ObjectType {
 }
 // available types of animation for each type of object
 enum ActiveShapeAnimationType {
-    DROP, WALL_KICK, ROTATION, LEFT_RIGHT, GHOST_MODE
+    DROP, WALL_KICK, ROTATION, LEFT_RIGHT, GHOST_MODE, DISAPPEARANCE
 }
 enum LockedBlockAnimationType {
     BREAK, DROP

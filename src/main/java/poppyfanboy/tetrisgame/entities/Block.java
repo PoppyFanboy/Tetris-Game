@@ -138,8 +138,7 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
         g.setComposite(AlphaComposite
                 .getInstance(AlphaComposite.SRC_OVER, (float) opacity));
         if (scale == 1.0) {
-            g.drawImage(progress < 0.5 ? left : right,
-                    0, 0, null);
+            g.drawImage(progress < 0.5 ? left : right, 0, 0, null);
         } else {
             g.drawImage(progress < 0.5 ? left : right,
                     (int) (blockWidth * (1 - scale) / 2),
@@ -149,10 +148,10 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
         }
 
         float alpha = (float)
-                ((progress < 0.5 ? progress : 1 - progress) * opacity);
+                (2 * (progress < 0.5 ? progress : 1 - progress) * opacity);
 
         g.setComposite(AlphaComposite
-                .getInstance(AlphaComposite.SRC_OVER, alpha));
+                .getInstance(AlphaComposite.DST, alpha));
         if (scale == 1.0) {
             g.drawImage(progress < 0.5 ? right : left,
                     0, 0, null);
@@ -225,6 +224,11 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
     public void setOpacity(double newOpacity) {
         newOpacity =  Math.min(Math.max(newOpacity, 0), 1);
         opacity = newOpacity;
+    }
+
+    @Override
+    public double getOpacity() {
+        return opacity;
     }
 
     @Override

@@ -75,7 +75,7 @@ public class ScoreDisplay extends Entity implements AnimatedDisplay,
     }
 
     @Override
-    public void updateScore(int score, int level, int clearedLinesCount) {
+    public void updateScore(int score, int clearedLinesCount, int level) {
         nextScore = score;
         this.level = level;
         this.clearedLinesCount = clearedLinesCount;

@@ -4,6 +4,7 @@ import java.util.Arrays;
 
 import poppyfanboy.tetrisgame.util.IntVector;
 import poppyfanboy.tetrisgame.util.DoubleVector;
+import static poppyfanboy.tetrisgame.util.IntVector.iVect;
 import poppyfanboy.tetrisgame.util.Rotation;
 import poppyfanboy.tetrisgame.util.Util;
 
@@ -60,21 +61,21 @@ public enum TetrisShapeType implements ShapeType {
     private static IntVector[][] wallKicks3 = {
         // 0 == initial, 2 == upside down
         // 0 -> R
-        {IntVector.iVect(-1, 0), IntVector.iVect(-1, -1), IntVector.iVect(0,  2), IntVector.iVect(-1,  2)},
+        {iVect(-1, 0), iVect(-1, -1), iVect(0,  2), iVect(-1,  2)},
         // R -> 2
-        {IntVector.iVect( 1, 0), IntVector.iVect( 1,  1), IntVector.iVect(0, -2), IntVector.iVect( 1, -2)},
+        {iVect( 1, 0), iVect( 1,  1), iVect(0, -2), iVect( 1, -2)},
         // 2 -> L
-        {IntVector.iVect( 1, 0), IntVector.iVect( 1, -1), IntVector.iVect(0,  2), IntVector.iVect( 1,  2)},
+        {iVect( 1, 0), iVect( 1, -1), iVect(0,  2), iVect( 1,  2)},
         // L -> 0
-        {IntVector.iVect(-1, 0), IntVector.iVect(-1,  1), IntVector.iVect(0, -2), IntVector.iVect(-1, -2)}
+        {iVect(-1, 0), iVect(-1,  1), iVect(0, -2), iVect(-1, -2)}
     };
 
     // clokwise wallkicks for the 4 blocks wide shapes
     private static IntVector[][] wallKicks4 = {
-        {IntVector.iVect(-2, 0), IntVector.iVect( 1, 0), IntVector.iVect(-2,  1), IntVector.iVect( 1, -2)},
-        {IntVector.iVect(-1, 0), IntVector.iVect( 2, 0), IntVector.iVect(-1, -2), IntVector.iVect( 2,  1)},
-        {IntVector.iVect( 2, 0), IntVector.iVect(-1, 0), IntVector.iVect( 2, -1), IntVector.iVect(-1,  2)},
-        {IntVector.iVect( 1, 0), IntVector.iVect(-2, 0), IntVector.iVect(-1, -2), IntVector.iVect( 2,  1)}
+        {iVect(-2, 0), iVect( 1, 0), iVect(-2,  1), iVect( 1, -2)},
+        {iVect(-1, 0), iVect( 2, 0), iVect(-1, -2), iVect( 2,  1)},
+        {iVect( 2, 0), iVect(-1, 0), iVect( 2, -1), iVect(-1,  2)},
+        {iVect( 1, 0), iVect(-2, 0), iVect(-1, -2), iVect( 2,  1)}
     };
 
     private boolean[][] initial, left, right, upsideDown;
@@ -186,6 +187,27 @@ public enum TetrisShapeType implements ShapeType {
     @Override
     public DoubleVector[] getConvexHull() {
         return Arrays.copyOf(convexHull, convexHull.length);
+    }
+
+    @Override
+    public IntVector getPreciseAABBMin() {
+        if (this == I_SHAPE) {
+            return iVect(0, 1);
+        } else {
+            return iVect(1, 1);
+        }
+    }
+
+    @Override
+    public IntVector getPreciseAABBMax() {
+        switch (this) {
+            case I_SHAPE:
+                return iVect(3, 1);
+            case CUBE_SHAPE:
+                return iVect(2, 2);
+            default:
+                return iVect(3, 2);
+        }
     }
 
     @Override

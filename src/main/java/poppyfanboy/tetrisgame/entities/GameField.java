@@ -17,6 +17,7 @@ import java.util.Random;
 import java.util.TreeMap;
 
 import poppyfanboy.tetrisgame.Game;
+import poppyfanboy.tetrisgame.graphics.animation2D.DisappearanceAnimation;
 import poppyfanboy.tetrisgame.states.GameState;
 
 import poppyfanboy.tetrisgame.graphics.Assets;
@@ -52,8 +53,7 @@ import static poppyfanboy.tetrisgame.util.IntVector.iVect;
  *          => 12 points
  */
 public class GameField extends Entity implements TileField, Controllable {
-    public static int DEFAULT_WIDTH = 10, DEFAULT_HEIGHT = 20;
-    public static IntVector SPAWN_COORDINATES = iVect(2, 0);
+    public static final int DEFAULT_WIDTH = 10, DEFAULT_HEIGHT = 20;
 
     private GameState gameState;
     private AnimationManager animationManager;
@@ -71,7 +71,7 @@ public class GameField extends Entity implements TileField, Controllable {
     private Queue<GameFieldState> statesQueue = new StatesQueue();
 
     private int widthInBlocks, heightInBlocks;
-    private Shape activeShape;
+    private Shape activeShape, ghostShape;
     private ShapeType nextShapeType;
     // blocks that were locked at the game field after some of the shapes
     // fell onto the bottom of the game field
@@ -333,6 +333,23 @@ public class GameField extends Entity implements TileField, Controllable {
                             if (reason.finished())
                                 statesQueue.offer(state);
                         }, neighborBlocks, state == SHAPE_SOFT_DROP);
+
+                    if (ghostShape != null
+                            && animationManager.getAnimation(ghostShape, ActiveShapeAnimationType.DISAPPEARANCE) == null
+                            && Math.abs(activeShape.getTileCoords().getY()
+                                    - ghostShape.getTileCoords().getY())
+                            < frameSize) {
+                        animationManager.addAnimation(ghostShape,
+                                ActiveShapeAnimationType.DISAPPEARANCE,
+                                new DisappearanceAnimation(
+                                        ghostShape.getOpacity(),
+                                        userControlAnimationDuration),
+                                reason -> {
+                                    animationManager
+                                            .removeActiveShape(ghostShape);
+                                    ghostShape = null;
+                                });
+                    }
                     lastMovementIsRotation = false;
                 } else {
                     statesQueue.offer(SHAPE_FELL);
@@ -366,6 +383,7 @@ public class GameField extends Entity implements TileField, Controllable {
                     animationManager.addLockedBlock(block);
                 }
                 animationManager.removeActiveShape(activeShape);
+                animationManager.removeActiveShape(ghostShape);
                 score.update(removeFilledRows(startY, startY + 3));
                 activeShape = null;
 
@@ -435,15 +453,30 @@ public class GameField extends Entity implements TileField, Controllable {
         BlockColor[] blockColors
                 = Shape.generateColorsArray(shapeType, color);
 
-        if (!Shape.fits(shapeType, SPAWN_COORDINATES, Rotation.INITIAL, this)) {
+        int shapeWidth = shapeType.getPreciseAABBMax().getX()
+                - shapeType.getPreciseAABBMin().getX() + 1;
+        IntVector spawnCoords = new IntVector(
+                (int) Math.ceil((widthInBlocks - shapeWidth - 1) / 2.0)
+                    - (shapeType.getFrameSize() - shapeWidth),
+                1 - shapeType.getPreciseAABBMin().getY());
+
+        if (!Shape.fits(shapeType, spawnCoords, Rotation.INITIAL, this)) {
             return false;
         }
         activeShape = new Shape(gameState, shapeType, Rotation.INITIAL,
-                SPAWN_COORDINATES, blockColors, this);
+                spawnCoords, blockColors, this);
+
+        IntVector ghostShapeCoords
+                = Shape.getGhostShapeCoords(activeShape, this);
+        ghostShape = new Shape(gameState, shapeType, Rotation.INITIAL,
+                ghostShapeCoords, blockColors, this);
+        ghostShape.setOpacity(0.4);
+
         lastMovementIsRotation = false;
         score.resetCombo();
 
         animationManager.addActiveShape(activeShape);
+        animationManager.addActiveShape(ghostShape);
         if (nextShapeDisplay != null) {
             nextShapeDisplay.setNextShape(nextShapeType);
             nextShapeDisplay.startTransitionAnimation();
@@ -631,6 +664,9 @@ public class GameField extends Entity implements TileField, Controllable {
         if (activeShape != null) {
             activeShape.render(gOriginal, interpolation);
         }
+        if (ghostShape != null) {
+            ghostShape.render(gOriginal, interpolation);
+        }
     }
 
     @Override
@@ -647,6 +683,9 @@ public class GameField extends Entity implements TileField, Controllable {
     public void tick() {
         if (activeShape != null) {
             activeShape.tick();
+        }
+        if (ghostShape != null) {
+            ghostShape.tick();
         }
         for (Block block : lockedBlocks.values()) {
             block.tick();
@@ -723,6 +762,17 @@ public class GameField extends Entity implements TileField, Controllable {
                     activeShape.getTileCoords().add(iVect(xShift, 0)),
                     activeShape.getRotation(), this)) {
                 activeShape.tileShift(iVect(xShift, 0));
+
+                if (ghostShape != null) {
+                    ghostShape.tileMove(
+                            Shape.getGhostShapeCoords(activeShape, this));
+                    ghostShape.startUserControlAnimation(
+                            userControlAnimationDuration, neighborBlocks,
+                            false);
+                    ghostShape
+                        .startWallKickAnimation(userControlAnimationDuration);
+                }
+
                 activeShape.startUserControlAnimation(
                         userControlAnimationDuration, neighborBlocks,
                         state == SHAPE_SOFT_DROP);
@@ -741,6 +791,20 @@ public class GameField extends Entity implements TileField, Controllable {
                 activeShape.rotate(rotationDirection);
                 activeShape.startRotationAnimation(angleShift, isClockwise,
                         userControlAnimationDuration, neighborBlocks);
+
+                if (ghostShape != null) {
+                    ghostShape.tileMove(
+                            Shape.getGhostShapeCoords(activeShape, this));
+                    ghostShape.rotate(rotationDirection);
+                    ghostShape.startRotationAnimation(angleShift,
+                            isClockwise, userControlAnimationDuration);
+                    ghostShape.startUserControlAnimation(
+                            userControlAnimationDuration, neighborBlocks,
+                            false);
+                    ghostShape.startWallKickAnimation(
+                            userControlAnimationDuration);
+                }
+
                 lastMovementIsRotation = true;
             } else {
                 IntVector[] wallKicks = rotationDirection == Rotation.RIGHT
@@ -766,6 +830,19 @@ public class GameField extends Entity implements TileField, Controllable {
                                 ActiveShapeAnimationType.DROP);
                         animationManager.interruptAnimation(activeShape,
                                 ActiveShapeAnimationType.LEFT_RIGHT);
+
+                        if (ghostShape != null) {
+                            ghostShape.tileMove(Shape
+                                    .getGhostShapeCoords(activeShape, this));
+                            ghostShape.rotate(rotationDirection);
+                            ghostShape.startRotationAnimation(angleShift,
+                                    isClockwise, userControlAnimationDuration);
+                            ghostShape.startUserControlAnimation(
+                                    userControlAnimationDuration,
+                                    neighborBlocks, false);
+                            ghostShape.startWallKickAnimation(
+                                    userControlAnimationDuration);
+                        }
 
                         statesQueue.offer(SHAPE_WALL_KICKED);
                         lastMovementIsRotation = true;

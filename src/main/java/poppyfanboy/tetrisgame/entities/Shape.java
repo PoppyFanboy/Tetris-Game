@@ -172,16 +172,23 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         RotationAnimation animation = new RotationAnimation(rotationAngle,
                 rotationAngle + angleShift, isClockwise, duration, Math.PI / 2);
         gameState.getAnimationManager().addAnimation(this,
-                ActiveShapeAnimationType.ROTATION,
-                animation);
+                ActiveShapeAnimationType.ROTATION, animation);
 
         enterGhostMode(neighborBlocks, duration);
     }
 
+    public void startRotationAnimation(double angleShift, boolean isClockwise,
+            int duration) {
+        RotationAnimation animation = new RotationAnimation(rotationAngle,
+                rotationAngle + angleShift, isClockwise, duration, Math.PI / 2);
+        gameState.getAnimationManager().addAnimation(this,
+                ActiveShapeAnimationType.ROTATION, animation);
+    }
+
     private void enterGhostMode(Collection<Block> neighborBlocks,
             int duration) {
-        final double eps = 0.1;
-        final int samplesCount = 4;
+        final double eps = 0.025;
+        final int samplesCount = 3;
         DoubleVector oldCoords = coords;
         double oldRotationAngle = rotationAngle;
 
@@ -209,6 +216,7 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
                         this.startGhostModeAnimation(duration + 5);
                         coords = oldCoords;
                         rotationAngle = oldRotationAngle;
+                        return;
                     }
                 }
             }
@@ -231,6 +239,10 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
                 tileCoords.toDouble(), duration, 1.0);
         gameState.getAnimationManager().addAnimation(this,
                 ActiveShapeAnimationType.WALL_KICK, animation, callback);
+    }
+
+    public void startWallKickAnimation(int duration) {
+        startWallKickAnimation(duration, null);
     }
 
     public void startGhostModeAnimation(int duration) {
@@ -339,6 +351,11 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
     }
 
     @Override
+    public double getOpacity() {
+        return opacity;
+    }
+
+    @Override
     public void setBrightness(double newBrightness) {
         newBrightness = Math.max(Math.min(newBrightness, 1.0), 0);
         brightness = newBrightness;
@@ -421,6 +438,18 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
     public static boolean fits(ShapeType shapeType, IntVector tileCoords,
             Rotation rotation, TileField tileField) {
         return fits(null, shapeType, tileCoords, rotation, tileField);
+    }
+
+    public static IntVector getGhostShapeCoords(Shape activeShape,
+            TileField tileField) {
+        ShapeType shapeType = activeShape.getShapeType();
+        IntVector ghostShapeCoords = activeShape.getTileCoords();
+        while (Shape.fits(activeShape, shapeType, ghostShapeCoords,
+                        activeShape.rotation, tileField)) {
+            ghostShapeCoords = ghostShapeCoords.add(0, 1);
+        }
+        ghostShapeCoords = ghostShapeCoords.add(0, -1);
+        return ghostShapeCoords;
     }
 
     /**

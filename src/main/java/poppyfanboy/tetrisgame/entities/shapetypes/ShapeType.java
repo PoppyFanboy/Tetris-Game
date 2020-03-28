@@ -52,6 +52,20 @@ public interface ShapeType {
 
     DoubleVector[] getConvexHull();
 
+    /**
+     * Shapes might be loosely fitted into the frame, these methods return
+     * the coordinates (in terms of the frame) of the smallest AABB surrounding
+     * the shape.
+     */
+    default IntVector getPreciseAABBMin() {
+        return new IntVector(0, 0);
+    }
+
+    default IntVector getPreciseAABBMax() {
+        int frameSize = getFrameSize();
+        return new IntVector(frameSize, frameSize);
+    }
+
     default int getSolidBlocksNumber() {
         final int frameSize = getFrameSize();
         int solidBlocksCount = 0;
