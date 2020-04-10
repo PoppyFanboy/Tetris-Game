@@ -53,6 +53,7 @@ public class GameField extends Entity implements TileField, Controllable {
     private int widthInBlocks, heightInBlocks;
     private Shape activeShape, ghostShape;
     private ShapeType nextShapeType;
+    private RandomBag<?> randomBag;
     // blocks that were locked at the game field after some of the shapes
     // fell onto the bottom of the game field
     private NavigableMap<IntVector, Block> lockedBlocks
@@ -153,7 +154,7 @@ public class GameField extends Entity implements TileField, Controllable {
         void reset() {
             score = 0;
             lines = 0;
-            level = 4;
+            level = 1;
             combo = 0;
             currentGoal = GOAL_COEFF * level * SCORE_COEFF;
             for (ScoreSubscriber sub : subscriptions) {
@@ -278,6 +279,35 @@ public class GameField extends Entity implements TileField, Controllable {
         void updateScore(int score, int lines, int level);
     }
 
+    private class RandomBag<E extends Enum<?>> {
+        private final Class<E> enumType;
+
+        // by default the bag is empty
+        List<ShapeType> items = new LinkedList<>();
+
+        RandomBag(Class<E> enumType) {
+            this.enumType = enumType;
+        }
+
+        public void refill() {
+            items.clear();
+            for (E enumConst : enumType.getEnumConstants()) {
+                items.add((ShapeType) enumConst);
+            }
+        }
+
+        public void clear() {
+            items.clear();
+        }
+
+        public ShapeType poll() {
+            if (items.size() == 0) {
+                refill();
+            }
+            return items.remove(random.nextInt(items.size()));
+        }
+    }
+
     /**
      * Creates an empty instance of a game field.
      *
@@ -297,7 +327,8 @@ public class GameField extends Entity implements TileField, Controllable {
         this.rotationAngle = 0;
 
         animationManager = gameState.getAnimationManager();
-        nextShapeType = Util.getRandomInstance(random, TetrisShapeType.class);
+        randomBag = new RandomBag<>(TetrisShapeType.class);
+        nextShapeType = randomBag.poll();
     }
 
     /**
@@ -475,8 +506,7 @@ public class GameField extends Entity implements TileField, Controllable {
      */
     private boolean spawnNewActiveShape() {
         ShapeType shapeType = nextShapeType;
-        nextShapeType
-                = Util.getRandomInstance(random, TetrisShapeType.class);
+        nextShapeType = randomBag.poll();
         BlockColor color
                 = Util.getRandomInstance(random, BlockColor.class);
         BlockColor[] blockColors
