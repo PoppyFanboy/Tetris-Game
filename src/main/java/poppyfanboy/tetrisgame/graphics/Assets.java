@@ -34,7 +34,7 @@ public class Assets implements AutoCloseable {
     private final double STROKE_SCALE;
     // how many samples of the same block with different lighting
     // applied should be generated
-    public static final int LIGHTING_SAMPLES_COUNT = 16;
+    public static final int LIGHTING_SAMPLES_COUNT = 64;
     // resolution for which the blocks (gems) are rendered. eventually they
     // will be scaled down anyways, but rendering them at higher resolution
     // will give smoother scaled result because of the antialiasing
@@ -118,8 +118,8 @@ public class Assets implements AutoCloseable {
     public BufferedImage getColoredBlockLeft(double lightAngle,
             BlockColor blockColor) {
         lightAngle = Rotation.normalizeAngle(lightAngle);
-        int index = (int) (LIGHTING_SAMPLES_COUNT * (lightAngle + Math.PI)
-                / (2 * Math.PI));
+        int index = (int) (LIGHTING_SAMPLES_COUNT
+                * (lightAngle + Math.PI) / (2 * Math.PI));
         return renderedGems.get(blockColor)[index % LIGHTING_SAMPLES_COUNT];
     }
 
@@ -192,11 +192,12 @@ public class Assets implements AutoCloseable {
                 BufferedImage.TYPE_INT_ARGB_PRE);
 
         DoubleVector[] normalizedContour = {
-                DoubleVector.dVect(0, 0.25), DoubleVector.dVect(0.25, 0),
-                DoubleVector.dVect(0.75, 0), DoubleVector.dVect(1, 0.25),
-                DoubleVector.dVect(1, 0.75), DoubleVector.dVect(0.75, 1),
-                DoubleVector.dVect(0.25, 1), DoubleVector.dVect(0, 0.75)
+                DoubleVector.dVect(0, 0.75), DoubleVector.dVect(0.25, 1),
+                DoubleVector.dVect(0.75, 1), DoubleVector.dVect(1, 0.75),
+                DoubleVector.dVect(1, 0.25), DoubleVector.dVect(0.75, 0),
+                DoubleVector.dVect(0.25, 0), DoubleVector.dVect(0, 0.25),
         };
+
         DoubleVector[] outerContour = getPolygon(renderWidth, renderHeight,
                 normalizedContour, 1.0, renderWidth / 16.0);
         DoubleVector[] innerContour = getPolygon(renderWidth, renderHeight,
@@ -225,15 +226,13 @@ public class Assets implements AutoCloseable {
         g2d.fillPolygon(DoubleVector.getIntX(outerContour),
                 DoubleVector.getIntY(outerContour), outerContour.length);
 
-        DoubleVector vectorToLight
-                = new DoubleVector(6, 4).normalize();
+        DoubleVector vectorToLight = new DoubleVector(1, 0);
         // side faces
         for (int i = 0; i < verticesCount; i++) {
             DoubleVector sideNormal = new DoubleVector(
                 outerContourX[(i + 1) % verticesCount] - outerContourX[i],
                 outerContourY[(i + 1) % verticesCount] - outerContourY[i])
-                .normalize().rotate(rotationAngle);
-
+                .normalize().rotate(rotationAngle + Math.PI / 2);
             float lightness = 1 - (float) Math.max(0,
                     DoubleVector.dotProduct(vectorToLight, sideNormal) * 0.9);
             g2d.setColor(blockColor.setSaturation(lightness));

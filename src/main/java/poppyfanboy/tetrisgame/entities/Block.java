@@ -119,44 +119,30 @@ public class Block extends Entity implements TileFieldObject, Animated2D {
                 tileCoords.getY() * blockWidth + 20,
                 blockWidth, blockWidth);*/
 
+        final DoubleVector lightSourceCoords = new DoubleVector(22, 10);
         double rotationAngle = getGlobalTransform().tScale(blockWidth)
                 .getRotation().getAngle();
+        DoubleVector lightVector = lightSourceCoords.subtract(
+                getGlobalTransform().apply(new DoubleVector(0.5, 0.5)))
+                .normalize();
+        double lightAngle = Math.atan2(lightVector.getY(), lightVector.getX());
+
         Graphics2D g = (Graphics2D) gOriginal.create();
-
         g.setTransform(getGlobalTransform().tScale(blockWidth).getTransform());
-
         Assets assets = gameState.getAssets();
-        BufferedImage left
-                = assets.getColoredBlockLeft(rotationAngle, blockColor);
-        BufferedImage right
-                = assets.getColoredBlockRight(rotationAngle, blockColor);
+
+        BufferedImage sprite = assets.getColoredBlockLeft(
+                -lightAngle + rotationAngle, blockColor);
 
         int n = Assets.LIGHTING_SAMPLES_COUNT;
-        double progress = (n * (Rotation.normalizeAngle(rotationAngle)
-                + Math.PI) / (2 * Math.PI)) % 1;
+        double progress = (n * (Rotation.normalizeAngle(rotationAngle - lightAngle) + Math.PI) / (2 * Math.PI)) % 1;
 
         g.setComposite(AlphaComposite
                 .getInstance(AlphaComposite.SRC_OVER, (float) opacity));
         if (scale == 1.0) {
-            g.drawImage(progress < 0.5 ? left : right, 0, 0, null);
+            g.drawImage(sprite, 0, 0, null);
         } else {
-            g.drawImage(progress < 0.5 ? left : right,
-                    (int) (blockWidth * (1 - scale) / 2),
-                    (int) (blockWidth * (1 - scale) / 2),
-                    (int) (blockWidth * scale),
-                    (int) (blockWidth * scale), null);
-        }
-
-        float alpha = (float)
-                (2 * (progress < 0.5 ? progress : 1 - progress) * opacity);
-
-        g.setComposite(AlphaComposite
-                .getInstance(AlphaComposite.DST, alpha));
-        if (scale == 1.0) {
-            g.drawImage(progress < 0.5 ? right : left,
-                    0, 0, null);
-        } else {
-            g.drawImage(progress < 0.5 ? right : left,
+            g.drawImage(sprite,
                     (int) (blockWidth * (1 - scale) / 2),
                     (int) (blockWidth * (1 - scale) / 2),
                     (int) (blockWidth * scale),
