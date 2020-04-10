@@ -443,6 +443,9 @@ public class GameField extends Entity implements TileField, Controllable {
                 break;
 
             case SHAPE_LOCKED:
+                if (exitLockDelayIfFits()) {
+                    break;
+                }
                 // wait until all of the animations are gone
                 for (ActiveShapeAnimationType animationType
                         : ActiveShapeAnimationType.values()) {
@@ -997,7 +1000,7 @@ public class GameField extends Entity implements TileField, Controllable {
         }
     }
 
-    private void exitLockDelayIfFits() {
+    private boolean exitLockDelayIfFits() {
         if (state != SHAPE_SOFT_DROP && state != SHAPE_FORCED_DROP
                 && Shape.fits(activeShape, activeShape.getShapeType(),
                         activeShape.getTileCoords().add(iVect(0, 1)),
@@ -1006,7 +1009,9 @@ public class GameField extends Entity implements TileField, Controllable {
                     ActiveShapeAnimationType.LOCK_DELAY);
 
             changeState(SHAPE_SOFT_DROP);
+            return true;
         }
+        return false;
     }
 
     public void setNextShapeDisplay(NextShapeDisplay nextShapeDisplay) {
