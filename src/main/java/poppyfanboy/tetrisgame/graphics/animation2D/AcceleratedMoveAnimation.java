@@ -5,7 +5,7 @@ import poppyfanboy.tetrisgame.util.DoubleVector;
 
 public class AcceleratedMoveAnimation extends Animation<Animated2D> {
     // acceleration is specified in terms of the blocks as measurement units
-    private static final double ACCELERATION = 0.0125;
+    private static final double ACCELERATION = 0.03;
 
     private final DoubleVector startCoords, endCoords;
     private double initialSpeed;

@@ -64,11 +64,11 @@ public class GameField extends Entity implements TileField, Controllable {
     private boolean lastMovementIsRotation;
 
     // current timings (updated as the player score is going up)
-    private int softDropDuration = Game.TICKS_PER_SECOND / 4;
-    private int forcedDropDuration = Game.TICKS_PER_SECOND / 16;
-    private int userControlAnimationDuration = softDropDuration;
-    private int hardDropDuration = 10;
-    private int blockBreakDuration = softDropDuration;
+    private int softDropDuration = score.getSoftDropDuration();
+    private int forcedDropDuration = score.getForcedDropDuration();
+    private int userControlDuration = score.getUserControlDuration();
+    private int hardDropDuration = score.getHardDropDuration();
+    private int blockBreakDuration = score.getBlockBreakDuration();
 
     // these collections are made unmodifiable
     // blocks that are being broken when the filled lines are removed
@@ -131,10 +131,15 @@ public class GameField extends Entity implements TileField, Controllable {
     }
 
     private class Score {
+        private static final int GOAL_COEFF = 5;
+        private static final int SCORE_COEFF = 100;
+
         List<ScoreSubscriber> subscriptions = new ArrayList<>();
         // default values
         int score = 0, lines = 0, level = 1;
         int combo = 0;
+
+        private int currentGoal = GOAL_COEFF * level * SCORE_COEFF;
 
         void subscribe(ScoreSubscriber subscriber) {
             subscriptions.add(subscriber);
@@ -150,6 +155,11 @@ public class GameField extends Entity implements TileField, Controllable {
             lines = 0;
             level = 1;
             combo = 0;
+            currentGoal = GOAL_COEFF * level * SCORE_COEFF;
+            for (ScoreSubscriber sub : subscriptions) {
+                sub.updateScore(score, lines, level);
+            }
+            updateTimings();
         }
 
         void resetCombo() {
@@ -162,7 +172,16 @@ public class GameField extends Entity implements TileField, Controllable {
                 for (ScoreSubscriber sub : subscriptions) {
                     sub.updateScore(score, lines, level);
                 }
+                updateTimings();
             }
+        }
+
+        void updateTimings() {
+            softDropDuration = getSoftDropDuration();
+            forcedDropDuration = getForcedDropDuration();
+            userControlDuration = getUserControlDuration();
+            hardDropDuration = getHardDropDuration();
+            blockBreakDuration = getBlockBreakDuration();
         }
 
         private void calculateScore(int linesCleared) {
@@ -220,7 +239,36 @@ public class GameField extends Entity implements TileField, Controllable {
                     scoreAdded = 12;
                 }
             }
-            score += scoreAdded * 100;
+            score += scoreAdded * SCORE_COEFF;
+            while (score >= currentGoal) {
+                level++;
+                currentGoal = currentGoal + GOAL_COEFF * level * SCORE_COEFF;
+            }
+        }
+
+        public int getSoftDropDuration() {
+            return (int) (Math.pow((0.8 - (level - 1) * 0.007),
+                    level - 1) * Game.TICKS_PER_SECOND);
+        }
+
+        public int getForcedDropDuration() {
+            return (int) Math.min(0.06 * Game.TICKS_PER_SECOND,
+                    getSoftDropDuration() / 4.0);
+        }
+
+        public int getUserControlDuration() {
+            return (int) Math.min(0.25 * Game.TICKS_PER_SECOND,
+                    getSoftDropDuration() / 1.5);
+        }
+
+        public int getHardDropDuration() {
+            return (int) Math.min(0.25 * Game.TICKS_PER_SECOND,
+                    getSoftDropDuration() / 10.0);
+        }
+
+        public int getBlockBreakDuration() {
+            return (int) Math.min(0.25 * Game.TICKS_PER_SECOND,
+                    getSoftDropDuration());
         }
     }
 
@@ -327,7 +375,7 @@ public class GameField extends Entity implements TileField, Controllable {
                                 - ghostShape.getTileCoords().getY())
                             < frameSize) {
                         ghostShape.startOpacityAnimation(0,
-                                userControlAnimationDuration);
+                                userControlDuration);
                     }
                     lastMovementIsRotation = false;
                 } else {
@@ -447,7 +495,7 @@ public class GameField extends Entity implements TileField, Controllable {
                 spawnCoords, blockColors, this);
         animationManager.addActiveShape(activeShape);
         activeShape.setOpacity(0);
-        activeShape.startOpacityAnimation(1, userControlAnimationDuration);
+        activeShape.startOpacityAnimation(1, userControlDuration);
 
         IntVector ghostShapeCoords
                 = Shape.getGhostShapeCoords(activeShape, this);
@@ -462,7 +510,7 @@ public class GameField extends Entity implements TileField, Controllable {
         } else {
             ghostShape.setOpacity(0);
             ghostShape.startOpacityAnimation(GHOST_SHAPE_OPACITY,
-                    userControlAnimationDuration);
+                    userControlDuration);
         }
 
         lastMovementIsRotation = false;
@@ -743,7 +791,7 @@ public class GameField extends Entity implements TileField, Controllable {
                         yShift = Shape.getGhostShapeCoords(activeShape, this)
                                 .getY() - activeShape.getTileCoords().getY();
                         ghostShape.startOpacityAnimation(0,
-                                userControlAnimationDuration);
+                                userControlDuration);
                         activeShape.tileShift(new IntVector(0, yShift));
                         activeShape.startHardDropAnimation(hardDropDuration);
                         animationManager.addAnimationCallback(activeShape,
@@ -777,19 +825,19 @@ public class GameField extends Entity implements TileField, Controllable {
                 ghostShape.tileMove(
                         Shape.getGhostShapeCoords(activeShape, this));
                 ghostShape.startUserControlAnimation(
-                        userControlAnimationDuration, neighborBlocks,
+                        userControlDuration, neighborBlocks,
                         false);
                 ghostShape
-                    .startWallKickAnimation(userControlAnimationDuration);
+                    .startWallKickAnimation(userControlDuration);
                 if (Math.abs(activeShape.getTileCoords().getY()
                             - ghostShape.getTileCoords().getY())
                         >= 3 * frameSize / 2) {
                     ghostShape.startOpacityAnimation(GHOST_SHAPE_OPACITY,
-                            userControlAnimationDuration);
+                            userControlDuration);
                 }
 
                 activeShape.startUserControlAnimation(
-                        userControlAnimationDuration, neighborBlocks,
+                        userControlDuration, neighborBlocks,
                         state == SHAPE_SOFT_DROP);
                 lastMovementIsRotation = false;
             }
@@ -807,17 +855,17 @@ public class GameField extends Entity implements TileField, Controllable {
                     activeShape.getTileCoords(), newRotation, this)) {
                 activeShape.rotate(rotationDirection);
                 activeShape.startRotationAnimation(angleShift, isClockwise,
-                        userControlAnimationDuration, neighborBlocks);
+                        userControlDuration, neighborBlocks);
 
                 ghostShape.tileMove(
                         Shape.getGhostShapeCoords(activeShape, this));
                 ghostShape.rotate(rotationDirection);
                 ghostShape.startRotationAnimation(angleShift, isClockwise,
-                        userControlAnimationDuration);
+                        userControlDuration);
                 ghostShape.startUserControlAnimation(
-                        userControlAnimationDuration, neighborBlocks,
+                        userControlDuration, neighborBlocks,
                         false);
-                ghostShape.startWallKickAnimation(userControlAnimationDuration);
+                ghostShape.startWallKickAnimation(userControlDuration);
 
                 lastMovementIsRotation = true;
             } else {
@@ -832,12 +880,12 @@ public class GameField extends Entity implements TileField, Controllable {
                         // rotate and wall kick
                         activeShape.rotate(rotationDirection);
                         activeShape.startRotationAnimation(angleShift,
-                                isClockwise, userControlAnimationDuration,
+                                isClockwise, userControlDuration,
                                 neighborBlocks);
 
                         activeShape.tileShift(shift);
                         activeShape.startWallKickAnimation(
-                                userControlAnimationDuration,
+                                userControlDuration,
                                 reason -> statesQueue.offer(SHAPE_SOFT_DROP));
 
                         animationManager.interruptAnimation(activeShape,
@@ -850,12 +898,12 @@ public class GameField extends Entity implements TileField, Controllable {
                                     .getGhostShapeCoords(activeShape, this));
                             ghostShape.rotate(rotationDirection);
                             ghostShape.startRotationAnimation(angleShift,
-                                    isClockwise, userControlAnimationDuration);
+                                    isClockwise, userControlDuration);
                             ghostShape.startUserControlAnimation(
-                                    userControlAnimationDuration,
+                                    userControlDuration,
                                     neighborBlocks, false);
                             ghostShape.startWallKickAnimation(
-                                    userControlAnimationDuration);
+                                    userControlDuration);
                         }
 
                         statesQueue.offer(SHAPE_WALL_KICKED);

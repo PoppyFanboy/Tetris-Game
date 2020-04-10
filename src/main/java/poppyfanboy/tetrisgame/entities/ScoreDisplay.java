@@ -78,8 +78,10 @@ public class ScoreDisplay extends Entity implements AnimatedDisplay,
     public void updateScore(int score, int clearedLinesCount, int level) {
         nextScore = score;
         this.level = level;
-        this.clearedLinesCount = clearedLinesCount;
-        startTransitionAnimation();
+        if (clearedLinesCount != this.clearedLinesCount) {
+            this.clearedLinesCount = clearedLinesCount;
+            startTransitionAnimation();
+        }
     }
 
     private void drawLines(Graphics g, int lineIndex, String... lines) {
