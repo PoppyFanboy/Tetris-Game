@@ -10,6 +10,7 @@ import java.util.List;
 import poppyfanboy.tetrisgame.graphics.AnimationEndHandler;
 import poppyfanboy.tetrisgame.graphics.animation2D.AcceleratedMoveAnimation;
 import poppyfanboy.tetrisgame.graphics.animation2D.GhostModeAnimation;
+import poppyfanboy.tetrisgame.graphics.animation2D.OpacityAnimation;
 import poppyfanboy.tetrisgame.states.GameState;
 import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
 import poppyfanboy.tetrisgame.graphics.animation2D.HVLinearAnimation;
@@ -257,6 +258,12 @@ public class Shape extends Entity implements TileFieldObject, Animated2D {
         GhostModeAnimation animation = new GhostModeAnimation(duration);
         gameState.getAnimationManager().addAnimation(this,
                 ActiveShapeAnimationType.GHOST_MODE, animation);
+    }
+
+    public void startOpacityAnimation(double endOpacity, int duration) {
+        gameState.getAnimationManager().addAnimation(this,
+                ActiveShapeAnimationType.OPACITY_CHANGE,
+                new OpacityAnimation(this.getOpacity(), endOpacity, duration));
     }
 
     @Override

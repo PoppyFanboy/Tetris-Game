@@ -2,36 +2,15 @@ package poppyfanboy.tetrisgame.entities;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.util.AbstractQueue;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.EnumMap;
-import java.util.EnumSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NavigableMap;
-import java.util.Queue;
-import java.util.Random;
-import java.util.TreeMap;
+import java.util.*;
 
 import poppyfanboy.tetrisgame.Game;
-import poppyfanboy.tetrisgame.graphics.animation2D.DisappearanceAnimation;
 import poppyfanboy.tetrisgame.states.GameState;
 
 import poppyfanboy.tetrisgame.graphics.Assets;
-import poppyfanboy.tetrisgame.entities.shapetypes.ShapeType;
-import poppyfanboy.tetrisgame.entities.shapetypes.TetrisShapeType;
-
-import poppyfanboy.tetrisgame.input.Controllable;
-import poppyfanboy.tetrisgame.input.InputKey;
-import poppyfanboy.tetrisgame.input.KeyState;
-import poppyfanboy.tetrisgame.util.DoubleVector;
-import poppyfanboy.tetrisgame.util.IntVector;
-import poppyfanboy.tetrisgame.util.Rotation;
-import poppyfanboy.tetrisgame.util.Transform;
-import poppyfanboy.tetrisgame.util.Util;
+import poppyfanboy.tetrisgame.entities.shapetypes.*;
+import poppyfanboy.tetrisgame.input.*;
+import poppyfanboy.tetrisgame.util.*;
 
 import static java.lang.Math.abs;
 import static poppyfanboy.tetrisgame.entities.GameField.GameFieldState.*;
@@ -54,6 +33,7 @@ import static poppyfanboy.tetrisgame.util.IntVector.iVect;
  */
 public class GameField extends Entity implements TileField, Controllable {
     public static final int DEFAULT_WIDTH = 10, DEFAULT_HEIGHT = 20;
+    public static final double GHOST_SHAPE_OPACITY = 0.4;
 
     private GameState gameState;
     private AnimationManager animationManager;
@@ -87,6 +67,7 @@ public class GameField extends Entity implements TileField, Controllable {
     private int softDropDuration = Game.TICKS_PER_SECOND / 4;
     private int forcedDropDuration = Game.TICKS_PER_SECOND / 16;
     private int userControlAnimationDuration = softDropDuration;
+    private int hardDropDuration = 10;
     private int blockBreakDuration = softDropDuration;
 
     // these collections are made unmodifiable
@@ -107,8 +88,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
         // states in which the player can still control the active shape
         private static final EnumSet<GameFieldState> SHAPE_CONTROLLABLE
-                = EnumSet.of(SHAPE_SOFT_DROP, SHAPE_FORCED_DROP,
-                SHAPE_WALL_KICKED, SHAPE_FELL);
+                = EnumSet.of(SHAPE_SOFT_DROP, SHAPE_FORCED_DROP);
 
         private static final EnumMap<GameFieldState, EnumSet<GameFieldState>>
                 possibleTransitions;
@@ -118,8 +98,12 @@ public class GameField extends Entity implements TileField, Controllable {
             possibleTransitions.put(STOPPED, EnumSet.of(SHAPE_SPAWN_READY));
             possibleTransitions
                     .put(PAUSED, EnumSet.allOf(GameFieldState.class));
-            possibleTransitions.put(SHAPE_SOFT_DROP, SHAPE_CONTROLLABLE);
-            possibleTransitions.put(SHAPE_FORCED_DROP, SHAPE_CONTROLLABLE);
+            possibleTransitions.put(SHAPE_SOFT_DROP,
+                    EnumSet.of(SHAPE_SOFT_DROP, SHAPE_HARD_DROP,
+                            SHAPE_FORCED_DROP));
+            possibleTransitions.put(SHAPE_FORCED_DROP,
+                    EnumSet.of(SHAPE_SOFT_DROP, SHAPE_HARD_DROP,
+                            SHAPE_FORCED_DROP));
             possibleTransitions.put(SHAPE_WALL_KICKED, SHAPE_CONTROLLABLE);
             possibleTransitions.put(SHAPE_HARD_DROP, EnumSet.of(SHAPE_FELL));
             possibleTransitions.put(SHAPE_FELL, EnumSet.of(SHAPE_LOCKED));
@@ -134,7 +118,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
         public boolean shapeFalling() {
             return this == SHAPE_SOFT_DROP || this == SHAPE_FORCED_DROP
-                    || this == SHAPE_SPAWN_READY;
+                    || this == SHAPE_HARD_DROP || this == SHAPE_SPAWN_READY;
         }
 
         public boolean shapeControllable() {
@@ -272,8 +256,7 @@ public class GameField extends Entity implements TileField, Controllable {
      */
     public GameField(GameState gameState, DoubleVector coords,
             int widthInBlocks, int heightInBlocks, Random random) {
-        this(gameState, coords, widthInBlocks, heightInBlocks, null,
-                random);
+        this(gameState, coords, widthInBlocks, heightInBlocks, null, random);
     }
 
     public void start() {
@@ -282,10 +265,13 @@ public class GameField extends Entity implements TileField, Controllable {
     }
 
     /**
-     * Changes the state of the game state. Ideally this method should
-     * have a some kind of graph of states with all possible transitions
-     * between them, thus preventing any illegal transitions. For now
-     * this method relies on the correctness of the calling code.
+     * Changes the state of the game and performs some additional operations
+     * if needed (e.g. when the state is changed to the
+     * {@code SHAPE_SPAWN_READY}, the code that spawns a new shape runs).
+     *
+     * This method relies on the correctness of the calling code, it will
+     * allow any transitions between the states of the game regardless of
+     * if they are even possible.
      */
     private void changeState(GameFieldState newState) {
         state = newState;
@@ -317,6 +303,7 @@ public class GameField extends Entity implements TileField, Controllable {
 
                     final int frameSize
                             = activeShape.getShapeType().getFrameSize();
+                    // needed for collision detection
                     Collection<Block> neighborBlocks = activeShape == null
                             ? Collections.emptyList()
                             : lockedBlocks.subMap(
@@ -335,22 +322,12 @@ public class GameField extends Entity implements TileField, Controllable {
                                 statesQueue.offer(state);
                         }, neighborBlocks, state == SHAPE_SOFT_DROP);
 
-                    if (ghostShape != null
-                            && animationManager.getAnimation(ghostShape,
-                                ActiveShapeAnimationType.DISAPPEARANCE) == null
-                            && Math.abs(activeShape.getTileCoords().getY()
-                                    - ghostShape.getTileCoords().getY())
-                                < frameSize) {
-                        animationManager.addAnimation(ghostShape,
-                                ActiveShapeAnimationType.DISAPPEARANCE,
-                                new DisappearanceAnimation(
-                                        ghostShape.getOpacity(),
-                                        userControlAnimationDuration),
-                                reason -> {
-                                    animationManager
-                                            .removeActiveShape(ghostShape);
-                                    ghostShape = null;
-                                });
+                    // make the ghost shape invisible once it gets too close
+                    if (Math.abs(activeShape.getTileCoords().getY()
+                                - ghostShape.getTileCoords().getY())
+                            < frameSize) {
+                        ghostShape.startOpacityAnimation(0,
+                                userControlAnimationDuration);
                     }
                     lastMovementIsRotation = false;
                 } else {
@@ -388,6 +365,7 @@ public class GameField extends Entity implements TileField, Controllable {
                 animationManager.removeActiveShape(ghostShape);
                 score.update(removeFilledRows(startY, startY + 3));
                 activeShape = null;
+                ghostShape = null;
 
                 for (Block block : brokenBlocks) {
                     block.startBreakAnimation(blockBreakDuration);
@@ -467,18 +445,29 @@ public class GameField extends Entity implements TileField, Controllable {
         }
         activeShape = new Shape(gameState, shapeType, Rotation.INITIAL,
                 spawnCoords, blockColors, this);
+        animationManager.addActiveShape(activeShape);
+        activeShape.setOpacity(0);
+        activeShape.startOpacityAnimation(1, userControlAnimationDuration);
 
         IntVector ghostShapeCoords
                 = Shape.getGhostShapeCoords(activeShape, this);
         ghostShape = new Shape(gameState, shapeType, Rotation.INITIAL,
                 ghostShapeCoords, blockColors, this);
-        ghostShape.setOpacity(0.4);
+        animationManager.addActiveShape(ghostShape);
+
+        int frameSize = activeShape.getShapeType().getFrameSize();
+        if (Math.abs(activeShape.getTileCoords().getY()
+                    - ghostShapeCoords.getY()) < 3 * frameSize / 2) {
+            ghostShape.setOpacity(0);
+        } else {
+            ghostShape.setOpacity(0);
+            ghostShape.startOpacityAnimation(GHOST_SHAPE_OPACITY,
+                    userControlAnimationDuration);
+        }
 
         lastMovementIsRotation = false;
         score.resetCombo();
 
-        animationManager.addActiveShape(activeShape);
-        animationManager.addActiveShape(ghostShape);
         if (nextShapeDisplay != null) {
             nextShapeDisplay.setNextShape(nextShapeType);
             nextShapeDisplay.startTransitionAnimation();
@@ -704,9 +693,9 @@ public class GameField extends Entity implements TileField, Controllable {
         int xShift = 0;
         int yShift = 0;
         Rotation rotationDirection = Rotation.INITIAL;
-        boolean shapeControllable = state.shapeFalling()
+        boolean shapeControllable = state.shapeControllable()
                 && (statesQueue.peek() == null
-                        || statesQueue.peek().shapeFalling());
+                        || statesQueue.peek().shapeControllable());
 
         final int frameSize = activeShape == null
                 ? 0
@@ -745,23 +734,23 @@ public class GameField extends Entity implements TileField, Controllable {
                                 = rotationDirection.add(Rotation.RIGHT);
                         break;
                     case SPACE:
+                        if (!shapeControllable) {
+                            break;
+                        }
                         state = SHAPE_HARD_DROP;
                         xShift = 0;
                         rotationDirection = Rotation.INITIAL;
                         yShift = Shape.getGhostShapeCoords(activeShape, this)
                                 .getY() - activeShape.getTileCoords().getY();
-                        if (ghostShape != null) {
-                            animationManager.addAnimation(ghostShape,
-                                    ActiveShapeAnimationType.DISAPPEARANCE,
-                                    new DisappearanceAnimation(
-                                            ghostShape.getOpacity(),
-                                            3),
-                                    reason -> {
-                                        animationManager
-                                                .removeActiveShape(ghostShape);
-                                        ghostShape = null;
-                                    });
-                        }
+                        ghostShape.startOpacityAnimation(0,
+                                userControlAnimationDuration);
+                        activeShape.tileShift(new IntVector(0, yShift));
+                        activeShape.startHardDropAnimation(hardDropDuration);
+                        animationManager.addAnimationCallback(activeShape,
+                                ActiveShapeAnimationType.DROP,
+                                reason -> statesQueue.offer(SHAPE_FELL));
+                        lastMovementIsRotation = false;
+                        shapeControllable = false;
                         break;
                 }
             }
@@ -779,30 +768,24 @@ public class GameField extends Entity implements TileField, Controllable {
             }
         }
 
-        if (yShift != 0 && shapeControllable) {
-            shapeControllable = false;
-            activeShape.tileShift(new IntVector(0, yShift));
-            activeShape.startHardDropAnimation(10);
-            animationManager.addAnimationCallback(activeShape,
-                    ActiveShapeAnimationType.DROP,
-                    reason -> statesQueue.offer(SHAPE_FELL));
-            lastMovementIsRotation = false;
-        }
-
         if (xShift != 0 && shapeControllable) {
             if (Shape.fits(activeShape, activeShape.getShapeType(),
                     activeShape.getTileCoords().add(iVect(xShift, 0)),
                     activeShape.getRotation(), this)) {
                 activeShape.tileShift(iVect(xShift, 0));
 
-                if (ghostShape != null) {
-                    ghostShape.tileMove(
-                            Shape.getGhostShapeCoords(activeShape, this));
-                    ghostShape.startUserControlAnimation(
-                            userControlAnimationDuration, neighborBlocks,
-                            false);
-                    ghostShape
-                        .startWallKickAnimation(userControlAnimationDuration);
+                ghostShape.tileMove(
+                        Shape.getGhostShapeCoords(activeShape, this));
+                ghostShape.startUserControlAnimation(
+                        userControlAnimationDuration, neighborBlocks,
+                        false);
+                ghostShape
+                    .startWallKickAnimation(userControlAnimationDuration);
+                if (Math.abs(activeShape.getTileCoords().getY()
+                            - ghostShape.getTileCoords().getY())
+                        >= 3 * frameSize / 2) {
+                    ghostShape.startOpacityAnimation(GHOST_SHAPE_OPACITY,
+                            userControlAnimationDuration);
                 }
 
                 activeShape.startUserControlAnimation(
@@ -826,18 +809,15 @@ public class GameField extends Entity implements TileField, Controllable {
                 activeShape.startRotationAnimation(angleShift, isClockwise,
                         userControlAnimationDuration, neighborBlocks);
 
-                if (ghostShape != null) {
-                    ghostShape.tileMove(
-                            Shape.getGhostShapeCoords(activeShape, this));
-                    ghostShape.rotate(rotationDirection);
-                    ghostShape.startRotationAnimation(angleShift,
-                            isClockwise, userControlAnimationDuration);
-                    ghostShape.startUserControlAnimation(
-                            userControlAnimationDuration, neighborBlocks,
-                            false);
-                    ghostShape.startWallKickAnimation(
-                            userControlAnimationDuration);
-                }
+                ghostShape.tileMove(
+                        Shape.getGhostShapeCoords(activeShape, this));
+                ghostShape.rotate(rotationDirection);
+                ghostShape.startRotationAnimation(angleShift, isClockwise,
+                        userControlAnimationDuration);
+                ghostShape.startUserControlAnimation(
+                        userControlAnimationDuration, neighborBlocks,
+                        false);
+                ghostShape.startWallKickAnimation(userControlAnimationDuration);
 
                 lastMovementIsRotation = true;
             } else {

@@ -10,14 +10,15 @@ import poppyfanboy.tetrisgame.input.KeyManager;
 import poppyfanboy.tetrisgame.states.*;
 
 /**
- * A game instance.
+ * A game instance. This class takes care of creating a window for the game
+ * and every other aspect of running the game. The game loop is also
+ * located here.
  */
 public class Game implements Runnable {
     // how many times per second *the game* is updated
     public static final int TICKS_PER_SECOND = 50;
     // max time for each game update
-    private static final long SKIP_TICKS
-        = 1_000_000_000 / TICKS_PER_SECOND;
+    private static final long SKIP_TICKS = 1_000_000_000 / TICKS_PER_SECOND;
     // how many times in a row the game can update without rendering
     // (so that on slow computers the game would run consistently)
     private static final int MAX_FRAMESKIP = 5;

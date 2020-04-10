@@ -2,12 +2,14 @@ package poppyfanboy.tetrisgame.graphics.animation2D;
 
 import poppyfanboy.tetrisgame.graphics.Animation;
 
-public class DisappearanceAnimation extends Animation<Animated2D> {
+public class OpacityAnimation extends Animation<Animated2D> {
     private final int duration;
-    private final double startOpacity;
+    private final double startOpacity, endOpacity;
 
-    public DisappearanceAnimation(double startOpacity, int duration) {
+    public OpacityAnimation(double startOpacity,
+            double endOpacity, int duration) {
         this.startOpacity = startOpacity;
+        this.endOpacity = endOpacity;
         this.duration = duration;
     }
 
@@ -17,7 +19,8 @@ public class DisappearanceAnimation extends Animation<Animated2D> {
         double progress = duration == 0
                 ? 1.0
                 : (currentDuration + interpolation) / duration;
-        object.setOpacity(startOpacity * (1 - progress));
+        object.setOpacity(
+                startOpacity * (1 - progress) + endOpacity * progress);
     }
 
     @Override
@@ -27,6 +30,6 @@ public class DisappearanceAnimation extends Animation<Animated2D> {
 
     @Override
     public void finish(Animated2D object) {
-        object.setOpacity(0);
+        object.setOpacity(endOpacity);
     }
 }
