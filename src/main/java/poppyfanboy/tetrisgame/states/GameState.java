@@ -10,6 +10,7 @@ import poppyfanboy.tetrisgame.entities.GameField;
 import poppyfanboy.tetrisgame.entities.NextShapeDisplay;
 import poppyfanboy.tetrisgame.entities.ScoreDisplay;
 import poppyfanboy.tetrisgame.graphics.Assets;
+import poppyfanboy.tetrisgame.input.KeyManager;
 import poppyfanboy.tetrisgame.util.DoubleVector;
 
 public class GameState extends State {
@@ -53,6 +54,10 @@ public class GameState extends State {
 
     public AnimationManager getAnimationManager() {
         return animationManager;
+    }
+
+    public KeyManager getKeyManager() {
+        return getGame().getKeyManager();
     }
 
     public Resolution getResolution() {

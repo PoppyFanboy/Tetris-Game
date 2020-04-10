@@ -4,16 +4,29 @@ import java.awt.event.KeyListener;
 import java.awt.event.KeyEvent;
 
 import java.util.*;
+import poppyfanboy.tetrisgame.Game;
 
 /**
  * A simple class that manages the mappings of the keys.
  */
 public class KeyManager implements KeyListener {
+    public static final int DEFAULT_AUTOSHIFT_DELAY
+            = (int) (0.4 * Game.TICKS_PER_SECOND);
+    public static final int DEFAULT_AUTOFIRE_RATE = 10;
+
     private EnumMap<InputKey, KeyState> pressedKeyboardKeys;
+    private EnumMap<InputKey, Integer> keysHoldTime;
     private List<Controllable> listeners;
+
+    private int autoShiftDelay = DEFAULT_AUTOSHIFT_DELAY;
+    private int autofireRate = DEFAULT_AUTOFIRE_RATE;
 
     public KeyManager() {
         pressedKeyboardKeys = new EnumMap<>(InputKey.class);
+        keysHoldTime = new EnumMap<>(InputKey.class);
+        for (InputKey key : InputKey.values()) {
+            keysHoldTime.put(key, 0);
+        }
         listeners = new LinkedList<>();
     }
 
@@ -56,13 +69,42 @@ public class KeyManager implements KeyListener {
             = pressedKeyboardKeys.entrySet().iterator();
         while (keyIterator.hasNext()) {
             EnumMap.Entry<InputKey, KeyState> key = keyIterator.next();
-            if (key.getValue() == KeyState.PRESSED) {
-                key.setValue(KeyState.HELD);
-            }
-            if (key.getValue() == KeyState.RELEASED) {
-                keyIterator.remove();
+            switch (key.getValue()) {
+                case PRESSED:
+                    key.setValue(KeyState.HELD);
+                    break;
+                case HELD:
+                    keysHoldTime.computeIfPresent(key.getKey(),
+                            (k, v) -> v + 1);
+                    if (keysHoldTime.get(key.getKey()) >= autoShiftDelay) {
+                        keysHoldTime.put(key.getKey(), 0);
+                        key.setValue(KeyState.AUTO_SHIFT);
+                    }
+                    break;
+                case RELEASED:
+                    keysHoldTime.computeIfPresent(key.getKey(), (k, v) -> 0);
+                    keyIterator.remove();
+                    break;
+                case AUTO_SHIFT:
+                    key.setValue(KeyState.AUTO_SHIFT_HELD);
+                    break;
+                case AUTO_SHIFT_HELD:
+                    keysHoldTime.computeIfPresent(key.getKey(),
+                            (k, v) -> v + 1);
+                    if (keysHoldTime.get(key.getKey()) >= autofireRate) {
+                        keysHoldTime.put(key.getKey(), 0);
+                        key.setValue(KeyState.AUTO_SHIFT);
+                    }
             }
         }
+    }
+
+    public void setAutoShiftDelay(int newDelay) {
+        autoShiftDelay = Math.max(0, newDelay);
+    }
+
+    public void setAutofireRate(int newDelay) {
+        autofireRate = Math.max(0, newDelay);
     }
 
     @Override
@@ -70,7 +112,7 @@ public class KeyManager implements KeyListener {
         InputKey pressedKey = InputKey.getByKeyCode(e.getKeyCode());
         if (pressedKey != null) {
             KeyState keyState = pressedKeyboardKeys.get(pressedKey);
-            if (keyState != KeyState.HELD) {
+            if (keyState == null || !keyState.isActive()) {
                 pressedKeyboardKeys.put(pressedKey, KeyState.PRESSED);
             }
         }

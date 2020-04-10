@@ -153,7 +153,7 @@ public class GameField extends Entity implements TileField, Controllable {
         void reset() {
             score = 0;
             lines = 0;
-            level = 1;
+            level = 4;
             combo = 0;
             currentGoal = GOAL_COEFF * level * SCORE_COEFF;
             for (ScoreSubscriber sub : subscriptions) {
@@ -182,6 +182,7 @@ public class GameField extends Entity implements TileField, Controllable {
             userControlDuration = getUserControlDuration();
             hardDropDuration = getHardDropDuration();
             blockBreakDuration = getBlockBreakDuration();
+            gameState.getKeyManager().setAutofireRate(userControlDuration - 5);
         }
 
         private void calculateScore(int linesCleared) {
@@ -757,7 +758,7 @@ public class GameField extends Entity implements TileField, Controllable {
                 ).values();
 
         for (EnumMap.Entry<InputKey, KeyState> key : inputs.entrySet()) {
-            if (key.getValue() == KeyState.PRESSED) {
+            if (key.getValue().fired()) {
                 switch (key.getKey()) {
                     case ARROW_DOWN:
                         if (!shapeControllable) {
