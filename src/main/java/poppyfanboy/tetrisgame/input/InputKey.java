@@ -5,6 +5,7 @@ import java.awt.event.KeyEvent;
 public enum InputKey {
     ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT,
     W, A, S, D,
+    R,
     SPACE, ENTER;
 
     /**
@@ -28,6 +29,8 @@ public enum InputKey {
                 return A;
             case KeyEvent.VK_D:
                 return D;
+            case KeyEvent.VK_R:
+                return R;
             case KeyEvent.VK_SPACE:
                 return SPACE;
             case KeyEvent.VK_ENTER:

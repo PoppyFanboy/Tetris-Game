@@ -52,13 +52,17 @@ public class NextShapeDisplay extends Entity implements AnimatedDisplay {
         this.widthInBlocks = widthInBlocks;
         this.heightInBlocks = heightInBlocks;
         currentImage = generateNextShapeImage(null);
-        currentImage = generateNextShapeImage(null);
+        nextImage = generateNextShapeImage(null);
         distortionIntensity = gameState.getResolution().getBlockWidth() / 6.0;
     }
 
     public void setNextShape(ShapeType newNextShape) {
         nextShape = newNextShape;
         nextImage = generateNextShapeImage(newNextShape);
+    }
+
+    public void gameOverDisplay() {
+        nextImage = generateGameOverImage();
     }
 
     @Override
@@ -213,6 +217,23 @@ public class NextShapeDisplay extends Entity implements AnimatedDisplay {
                 2 * pixelWidth, new float[]{ 4 * pixelWidth }, 2 * pixelWidth));
         g.drawRect(0, 2 * glyphWidth, 5 * glyphWidth, 5 * glyphWidth);
 
+        return image;
+    }
+
+    private BufferedImage generateGameOverImage() {
+        final int blockWidth = gameState.getResolution().getBlockWidth();
+        BufferedImage image = new BufferedImage(widthInBlocks * blockWidth,
+                heightInBlocks * blockWidth, BufferedImage.TYPE_INT_ARGB_PRE);
+        Graphics2D g = (Graphics2D) image.getGraphics();
+        final int glyphWidth = gameState.getResolution().getFontPixelSize();
+        g.setTransform(
+                AffineTransform.getTranslateInstance(glyphWidth, glyphWidth));
+
+        g.setFont(new Font(Assets.FONT_NAME,
+                Font.PLAIN, gameState.getResolution().getFontSize()));
+        g.setColor(Assets.FONT_COLOR);
+
+        drawLines(g, 0, " GAME", " OVER", " ", "PRESS", "R FOR", "NEW", "GAME");
         return image;
     }
 

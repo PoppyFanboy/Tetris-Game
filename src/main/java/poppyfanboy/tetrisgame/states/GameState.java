@@ -43,9 +43,6 @@ public class GameState extends State {
                 ScoreDisplay.DEFAULT_WIDTH, ScoreDisplay.DEFAULT_HEIGHT);
         animationManager.addDisplay(scoreDisplay);
         gameField.setScoreDisplay(scoreDisplay);
-
-        // test code
-        gameField.start();
     }
 
     public Assets getAssets() {

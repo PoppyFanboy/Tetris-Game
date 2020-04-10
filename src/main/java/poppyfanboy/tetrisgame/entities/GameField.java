@@ -6,6 +6,7 @@ import java.util.*;
 
 import poppyfanboy.tetrisgame.Game;
 import poppyfanboy.tetrisgame.graphics.BlankAnimation;
+import poppyfanboy.tetrisgame.graphics.animation2D.AcceleratedMoveAnimation;
 import poppyfanboy.tetrisgame.states.GameState;
 
 import poppyfanboy.tetrisgame.graphics.Assets;
@@ -82,7 +83,7 @@ public class GameField extends Entity implements TileField, Controllable {
     private List<IntVector> droppedBlocksOldKeys = Collections.emptyList();
 
     public enum GameFieldState {
-        STOPPED, PAUSED,
+        STOPPED, CLEARING_GAMEFIELD, PAUSED,
         SHAPE_SOFT_DROP, SHAPE_FORCED_DROP, SHAPE_WALL_KICKED, SHAPE_HARD_DROP,
         SHAPE_FELL, SHAPE_LOCKED,
         CLEARING_FILLED_LINES, DROPPING_BLOCKS,
@@ -191,7 +192,8 @@ public class GameField extends Entity implements TileField, Controllable {
             hardDropDuration = getHardDropDuration();
             blockBreakDuration = getBlockBreakDuration();
             lockDelayDuration = getLockDelayDuration();
-            gameState.getKeyManager().setAutofireRate(userControlDuration - 5);
+            gameState.getKeyManager()
+                    .setAutofireRate(userControlDuration / 4);
         }
 
         private void calculateScore(int linesCleared) {
@@ -376,7 +378,9 @@ public class GameField extends Entity implements TileField, Controllable {
                 if (spawnNewActiveShape()) {
                     statesQueue.offer(SHAPE_SOFT_DROP);
                 } else {
-                    statesQueue.offer(SHAPE_FELL);
+                    statesQueue.offer(STOPPED);
+                    nextShapeDisplay.gameOverDisplay();
+                    nextShapeDisplay.startTransitionAnimation();
                 }
                 break;
 
@@ -850,6 +854,32 @@ public class GameField extends Entity implements TileField, Controllable {
                         lastMovementIsRotation = false;
                         shapeControllable = false;
                         break;
+                    case R:
+                        if (state == STOPPED) {
+                            for (Block block : lockedBlocks.values()) {
+                                animationManager.addAnimation(block,
+                                        LockedBlockAnimationType.DROP,
+                                        new AcceleratedMoveAnimation(
+                                                block.getCoords(),
+                                                block.getCoords()
+                                                        .add(0, 25), 0));
+                            }
+                            if (!lockedBlocks.isEmpty()) {
+                                state = CLEARING_GAMEFIELD;
+                                animationManager.addAnimationCallback(
+                                        lockedBlocks.firstEntry().getValue(),
+                                        LockedBlockAnimationType.DROP,
+                                        reason -> {
+                                            for (Block block : lockedBlocks.values()) {
+                                                animationManager.removeLockedBlock(block);
+                                            }
+                                            lockedBlocks.clear();
+                                            start();
+                                        });
+                            } else {
+                                start();
+                            }
+                        }
                 }
             }
             if (key.getValue() == KeyState.RELEASED) {
@@ -974,12 +1004,15 @@ public class GameField extends Entity implements TileField, Controllable {
                         activeShape.getRotation(), this)) {
             animationManager.interruptAnimation(activeShape,
                     ActiveShapeAnimationType.LOCK_DELAY);
+
             changeState(SHAPE_SOFT_DROP);
         }
     }
 
     public void setNextShapeDisplay(NextShapeDisplay nextShapeDisplay) {
         this.nextShapeDisplay = nextShapeDisplay;
+        nextShapeDisplay.gameOverDisplay();
+        nextShapeDisplay.startTransitionAnimation();
     }
 
     public void setScoreDisplay(ScoreDisplay scoreDisplay) {

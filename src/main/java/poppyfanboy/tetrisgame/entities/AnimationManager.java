@@ -262,6 +262,7 @@ public class AnimationManager {
                 ActionType.REMOVE_OBJECT, object, map, null);
     }
 
+
     private <T, K extends Enum<K>> PostponedAction<T, K>
             getObjectAdditionAction(T object, Map<T, AnimatedObject<T, K>> map,
                     Class<K> animationTypes) {
