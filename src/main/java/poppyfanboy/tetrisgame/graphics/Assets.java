@@ -95,7 +95,7 @@ public class Assets implements AutoCloseable {
             GraphicsEnvironment ge
                     = GraphicsEnvironment.getLocalGraphicsEnvironment();
             ge.registerFont(Font.createFont(Font.TRUETYPE_FONT,
-                    new File(Assets.class.getResource(FONT_PATH).getFile())));
+                    Assets.class.getResourceAsStream(FONT_PATH)));
         } catch (FontFormatException ex) {
             // use placeholder font
         }
